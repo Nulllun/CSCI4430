@@ -8,6 +8,7 @@
 #include <sys/socket.h>
 #include <sys/types.h>
 #include <unistd.h>
+#include <dirent.h>
 
 #define PORT 12345
 #define IPADDR "127.0.0.1"

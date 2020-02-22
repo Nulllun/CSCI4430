@@ -1,5 +1,5 @@
-# include <myftp.h>
-# include <myftp.c>
+# include "myftp.h"
+# include "myftp.c"
 
 int recvMsg(int sd, char *buff, int len) {
     int recvLen = 0;
@@ -27,9 +27,6 @@ int sendMsg(int sd, char *buff, int len) {
     return 0;
 }
 
-/*
- * Worker thread performing receiving and outputing messages
- */
 void *pthread_prog(void *sDescriptor) {
     int sd = *(int *)sDescriptor;
     int *len = (int *)calloc(sizeof(int), 1);
