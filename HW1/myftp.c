@@ -11,13 +11,21 @@ void listdir(){
     }
     else {
         while ((entry = readdir(dir)) != NULL) {
-            printf("%s\n", entry->d_name);
+            printf("%lu\n", strlen(entry->d_name));
         }
         closedir(dir);
     }
 }
 
+void list_request() {
+    struct message_s *msg = (struct message_s *)malloc(sizeof(msg));
+    memcpy(msg->protocol, "myftp", 5);
+    msg->type = 0xA1;
+    msg->length = sizeof(msg);
+
+}
+
 int main(void) {
-    listdir();
+    list_request();
     return 0;
 }

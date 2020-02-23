@@ -1,5 +1,13 @@
-# include "myftp.h"
 # include "myftp.c"
+
+int list_request() {
+    struct message_s msg;
+    memset(&msg, 0, sizeof(msg));
+    strcpy(msg.protocol, "myftp");
+    msg.type = 0xA1;
+    msg.length = sizeof(msg);
+    
+}
 
 int recvMsg(int sd, char *buff, int len) {
     int recvLen = 0;

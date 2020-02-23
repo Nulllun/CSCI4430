@@ -1,4 +1,3 @@
-# include "myftp.h"
 # include "myftp.c"
 
 int recvMsg(int sd, char *buff, int len) {
