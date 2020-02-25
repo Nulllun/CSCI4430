@@ -61,21 +61,7 @@ int main(int argc, char **argv) {
     }
     pthread_t worker;
     pthread_create(&worker, NULL, pthread_prog, &client_sd);
-    char buff[100];
-    while (1) {
-        // memset(buff, 0, 100);
-        // scanf("%s", buff);
-        // int *msgLen = (int *)calloc(sizeof(int), 1);
-        // *msgLen = strlen(buff);
-        // if (sendMsg(client_sd, (char *)msgLen, sizeof(int)) == 1) {
-        //     fprintf(stderr, "send error, exit\n");
-        //     exit(0);
-        // }
-        // if (sendMsg(client_sd, buff, *msgLen) == 1) {
-        //     fprintf(stderr, "send error, exit\n");
-        //     exit(0);
-        // }
-    }
+    
     close(sd);
     return 0;
 }
