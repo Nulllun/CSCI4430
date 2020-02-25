@@ -12,6 +12,8 @@ void list_request() {
     int payload_len = header->length - 10;
     void *buff = recv_payload(sd, payload_len);
     printf("%s\n", (char *)buff);
+    free(header);
+    free(buff);
 }
 
 void get_request() {
@@ -53,6 +55,7 @@ int main(int argc, char **argv) {
     else if(strcmp(mode, "get") == 0){
         get_request();
     }
-
+    
+    close(sd);
     return 0;
 }

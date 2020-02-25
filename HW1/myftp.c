@@ -99,7 +99,7 @@ void send_payload(int sd, void *buff, int payload_len) {
 
 // receive payload as void buffer
 void *recv_payload(int sd, int payload_len) {
-    void *buff = (void *)malloc(500);
+    void *buff = (void *)malloc(payload_len);
     if (recvn(sd, (void *)buff, payload_len) == 1) {
         fprintf(stderr, "error receiving, exit!\n");
         exit(0);
