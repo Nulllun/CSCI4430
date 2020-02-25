@@ -1,12 +1,12 @@
 CC = gcc
 CFLAG = -lpthread
 
-all: server client
+all: myftpserver myftpclient
 
-server: myftpserver.c
+myftpserver: myftpserver.c
 	$(CC) -o $@ $< $(CFLAG)
 
-client: myftpclient.c
+myftpclient: myftpclient.c
 	$(CC) -o $@ $< $(CFLAG)
 
 clean:

@@ -1,61 +1,26 @@
 # include "myftp.c"
 
-int list_request() {
-    struct message_s msg;
-    memset(&msg, 0, sizeof(msg));
-    strcpy(msg.protocol, "myftp");
-    msg.type = 0xA1;
-    msg.length = sizeof(msg);
-    
+int sd;
+char *server_ip_addr;
+char *port;
+char *mode;
+char *filename;
+
+void list_request() {
+    send_header(sd, 0xa1, 0);
 }
 
-int recvMsg(int sd, char *buff, int len) {
-    int recvLen = 0;
-    while (recvLen != len) {
-        int rLen = recv(sd, buff + recvLen, len - recvLen, 0);
-        if (rLen <= 0) {
-            fprintf(stderr, "error recving msg\n");
-            return 1;
-        }
-        recvLen += rLen;
-    }
-    return 0;
+void get_request() {
+    send_header(sd, 0xb1, 0);
 }
 
-int sendMsg(int sd, char *buff, int len) {
-    int recvLen = 0;
-    while (recvLen != len) {
-        int rLen = send(sd, buff + recvLen, len - recvLen, 0);
-        if (rLen <= 0) {
-            fprintf(stderr, "error sending msg\n");
-            return 1;
-        }
-        recvLen += rLen;
-    }
-    return 0;
-}
-
-void *pthread_prog(void *sDescriptor) {
-    int sd = *(int *)sDescriptor;
-    int *len = (int *)calloc(sizeof(int), 1);
-    while (1) {
-        if (recvMsg(sd, (char *)len, sizeof(int)) == 1) {
-            fprintf(stderr, "error receiving, exit!\n");
-            exit(0);
-        }
-        char *buff = (char *)calloc(sizeof(char), *len + 1);
-        if (recvMsg(sd, buff, *len) == 1) {
-            fprintf(stderr, "error receiving, exit!\n");
-            exit(0);
-        }
-        printf("recv'd msg: %s\n", buff);
-        free(buff);
-    }
-    free(len);
+void put_request() {
+    send_header(sd, 0xc1, 0);
 }
 
 int main(int argc, char **argv) {
-    int sd = socket(AF_INET, SOCK_STREAM, 0);
+    // setup connection
+    sd = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in server_addr;
     pthread_t worker;
     memset(&server_addr, 0, sizeof(server_addr));
@@ -66,22 +31,25 @@ int main(int argc, char **argv) {
         printf("connection error: %s (Errno:%d)\n", strerror(errno), errno);
         exit(0);
     }
-    pthread_create(&worker, NULL, pthread_prog, &sd);
-    char buff[100];
-    while (1) {
-        memset(buff, 0, 100);
-        scanf("%s", buff);
-        int *msgLen = (int *)calloc(sizeof(int), 1);
-        *msgLen = strlen(buff);
-        // printf("%s\n",buff);
-        if (sendMsg(sd, (char *)msgLen, sizeof(int)) == 1) {
-            fprintf(stderr, "send error, exit\n");
-            exit(0);
-        }
-        if (sendMsg(sd, buff, *msgLen) == 1) {
-            fprintf(stderr, "send error, exit\n");
-            exit(0);
-        }
+
+    // three mode
+    mode = argv[1];
+    if(argc >= 3) {
+        filename = argv[2];
     }
+    printf("Mode: %s\n", mode);
+    printf("Filename: %s\n", filename);
+    printf("Filename_Len: %lu\n", strlen(filename));
+
+    if(strcmp(mode, "list") == 0){
+        list_request();
+    }
+    else if(strcmp(mode, "put") == 0){
+        put_request();
+    }
+    else if(strcmp(mode, "get") == 0){
+        get_request();
+    }
+    
     return 0;
 }

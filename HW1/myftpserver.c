@@ -1,48 +1,21 @@
 # include "myftp.c"
 
-int recvMsg(int sd, char *buff, int len) {
-    int recvLen = 0;
-    while (recvLen != len) {
-        int rLen = recv(sd, buff + recvLen, len - recvLen, 0);
-        if (rLen <= 0) {
-            fprintf(stderr, "error recving msg\n");
-            return 1;
-        }
-        recvLen += rLen;
-    }
-    return 0;
-}
-
-int sendMsg(int sd, char *buff, int len) {
-    int recvLen = 0;
-    while (recvLen != len) {
-        int rLen = send(sd, buff + recvLen, len - recvLen, 0);
-        if (rLen <= 0) {
-        fprintf(stderr, "error sending msg, error code: %d\n", rLen);
-        return 1;
-        }
-        recvLen += rLen;
-    }
-    return 0;
-}
-
 void *pthread_prog(void *sDescriptor) {
     int sd = *(int *)sDescriptor;
-    int *len = (int *)calloc(sizeof(int), 1);
-    while (1) {
-        if (recvMsg(sd, (char *)len, sizeof(int)) == 1) {
-            fprintf(stderr, "error receiving, exit!\n");
-            exit(0);
-        }
-        char *buff = (char *)calloc(sizeof(char), *len + 1);
-        if (recvMsg(sd, buff, *len) == 1) {
-            fprintf(stderr, "error receiving, exit!\n");
-            exit(0);
-        }
-        printf("recv'd msg: %s\n", buff);
-        free(buff);
+    struct message_s *header = (struct message_s *)malloc(sizeof(struct message_s));
+    recv_header(sd, header);
+    printf("protocol: %s", header->protocol);
+    printf("type: 0x%x\n", header->type);
+    printf("length: %u\n", header->length);
+    if(header->type == 0xa1){
+        printf("It is a list request\n");
     }
-    free(len);
+    else if(header->type == 0xb1){
+        printf("It is a list request\n");
+    }
+    else if(header->type == 0xc1){
+        printf("It is a list request\n");
+    }
 }
 
 int main(int argc, char **argv) {
@@ -63,7 +36,7 @@ int main(int argc, char **argv) {
     }
     struct sockaddr_in client_addr;
     int addr_len = sizeof(client_addr);
-    if ((client_sd = accept(sd, (struct sockaddr *)&client_addr, &addr_len)) <0) {
+    if ((client_sd = accept(sd, (struct sockaddr *)&client_addr, (socklen_t *)&addr_len)) <0) {
         printf("accept erro: %s (Errno:%d)\n", strerror(errno), errno);
         exit(0);
     } else {
@@ -73,18 +46,18 @@ int main(int argc, char **argv) {
     pthread_create(&worker, NULL, pthread_prog, &client_sd);
     char buff[100];
     while (1) {
-        memset(buff, 0, 100);
-        scanf("%s", buff);
-        int *msgLen = (int *)calloc(sizeof(int), 1);
-        *msgLen = strlen(buff);
-        if (sendMsg(client_sd, (char *)msgLen, sizeof(int)) == 1) {
-            fprintf(stderr, "send error, exit\n");
-            exit(0);
-        }
-        if (sendMsg(client_sd, buff, *msgLen) == 1) {
-            fprintf(stderr, "send error, exit\n");
-            exit(0);
-        }
+        // memset(buff, 0, 100);
+        // scanf("%s", buff);
+        // int *msgLen = (int *)calloc(sizeof(int), 1);
+        // *msgLen = strlen(buff);
+        // if (sendMsg(client_sd, (char *)msgLen, sizeof(int)) == 1) {
+        //     fprintf(stderr, "send error, exit\n");
+        //     exit(0);
+        // }
+        // if (sendMsg(client_sd, buff, *msgLen) == 1) {
+        //     fprintf(stderr, "send error, exit\n");
+        //     exit(0);
+        // }
     }
     close(sd);
     return 0;
