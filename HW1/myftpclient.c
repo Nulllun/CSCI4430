@@ -8,6 +8,10 @@ char *filename;
 
 void list_request() {
     send_header(sd, 0xa1, 0);
+    struct message_s *header = recv_header(sd);
+    int payload_len = header->length - 10;
+    void *buff = recv_payload(sd, payload_len);
+    printf("%s\n", (char *)buff);
 }
 
 void get_request() {
@@ -39,7 +43,6 @@ int main(int argc, char **argv) {
     }
     printf("Mode: %s\n", mode);
     printf("Filename: %s\n", filename);
-    printf("Filename_Len: %lu\n", strlen(filename));
 
     if(strcmp(mode, "list") == 0){
         list_request();
@@ -50,6 +53,6 @@ int main(int argc, char **argv) {
     else if(strcmp(mode, "get") == 0){
         get_request();
     }
-    
+
     return 0;
 }

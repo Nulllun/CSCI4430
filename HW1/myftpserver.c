@@ -1,14 +1,31 @@
 # include "myftp.c"
 
+void list_reply(int sd) {
+    char list_dir[500];
+    int payload_len;
+    struct message_s *header = (struct message_s *)malloc(sizeof(struct message_s));
+    listdir(list_dir);
+    payload_len = strlen(list_dir) + 1;
+    send_header(sd, 0xa2, payload_len);
+    send_payload(sd, list_dir, payload_len);
+}
+
+void get_reply() {
+
+}
+
+void put_reply() {
+
+}
+
 void *pthread_prog(void *sDescriptor) {
     int sd = *(int *)sDescriptor;
-    struct message_s *header = (struct message_s *)malloc(sizeof(struct message_s));
-    recv_header(sd, header);
+    struct message_s *header = recv_header(sd);
     printf("protocol: %s", header->protocol);
     printf("type: 0x%x\n", header->type);
     printf("length: %u\n", header->length);
     if(header->type == 0xa1){
-        printf("It is a list request\n");
+        list_reply(sd);
     }
     else if(header->type == 0xb1){
         printf("It is a list request\n");
