@@ -74,7 +74,7 @@ int main(int argc, char **argv) {
         printf("bind error: %s (Errno:%d)\n", strerror(errno), errno);
         exit(0);
     }
-    if (listen(sd, 3) < 0) {
+    if (listen(sd, 10) < 0) {
         printf("listen error: %s (Errno:%d)\n", strerror(errno), errno);
         exit(0);
     }
