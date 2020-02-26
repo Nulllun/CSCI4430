@@ -67,7 +67,7 @@ void send_header(int sd, unsigned char type, int payload_len) {
     struct message_s *header = (struct message_s *)malloc(sizeof(struct message_s));
     memcpy(header->protocol, "myftp", 5);
     header->type = type;
-    header->length = sizeof(*header) + payload_len;
+    header->length = htonl(sizeof(*header) + payload_len);
     if (sendn(sd, (void *)header, HEADER_LEN) == 1) {
         fprintf(stderr, "send error, exit\n");
         exit(0);
@@ -82,6 +82,7 @@ struct message_s *recv_header(int sd) {
         fprintf(stderr, "error receiving, exit!\n");
         exit(0);
     }
+    header->length = ntohl(header->length);
     return header;
 }
 
