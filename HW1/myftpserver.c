@@ -46,10 +46,10 @@ void put_reply() {
 void *pthread_prog(void *sDescriptor) {
     int sd = *(int *)sDescriptor;
     struct message_s *header = recv_header(sd);
-    printf("Received Header:\n");
-    printf("protocol: %s", header->protocol);
-    printf("type: 0x%x\n", header->type);
-    printf("length: %u\n", header->length);
+    // printf("Received Header:\n");
+    // printf("protocol: %s", header->protocol);
+    // printf("type: 0x%x\n", header->type);
+    // printf("length: %u\n", header->length);
     if(header->type == 0xa1){
         list_reply(sd);
     }

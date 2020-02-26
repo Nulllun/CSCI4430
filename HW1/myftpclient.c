@@ -9,10 +9,6 @@ char *filename;
 void list_request() {
     send_header(sd, 0xa1, 0);
     struct message_s *header = recv_header(sd);
-    printf("Received Header:\n");
-    printf("protocol: %s", header->protocol);
-    printf("type: 0x%x\n", header->type);
-    printf("length: %u\n", header->length);
     int payload_len = header->length - HEADER_LEN;
     void *buff = recv_payload(sd, payload_len);
     printf("%s\n", (char *)buff);
@@ -33,19 +29,10 @@ void get_request() {
     if(type == 0xb2) {
         printf("The download process will begin soon.\n");
     }
-    printf("Received Header:\n");
-    printf("protocol: %s", header->protocol);
-    printf("type: 0x%x\n", header->type);
-    printf("length: %u\n", header->length);
-    free(header);
 
     // start to receive file
     FILE *fptr = fopen(filename, "wb");
     header = recv_header(sd);
-    printf("Received Header:\n");
-    printf("protocol: %s", header->protocol);
-    printf("type: 0x%x\n", header->type);
-    printf("length: %u\n", header->length);
 
     int file_size = header->length - HEADER_LEN;
     void *buff = recv_payload(sd, file_size);
