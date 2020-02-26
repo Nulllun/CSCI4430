@@ -4,21 +4,17 @@ LIB2 = -lpthread -lsocket -lnsl
 
 all: 
 	@if [ "`uname -s`" = "Linux" ] ; then \
-		make myftpclientlinux myftpserverlinux ; \
+		make linux ; \
 	else \
-		make myftpclientunix myftpserverunix ; \
+		make unix ; \
 	fi
 
-myftpserverlinux: 
-	$(CC) -o myftpserver myftpserver.c $(LIB)
-
-myftpclientlinux: 
+linux: 
+	$(CC) -o myftpserver myftpserver.c $(LIB) 
 	$(CC) -o myftpclient myftpclient.c $(LIB)
 
-myftpserverunix: 
-	$(CC) -o myftpserver myftpserver.c $(LIB2)
-
-myftpclientunix: 
+unix: 
+	$(CC) -o myftpserver myftpserver.c $(LIB2) 
 	$(CC) -o myftpclient myftpclient.c $(LIB2)
 
 clean:
