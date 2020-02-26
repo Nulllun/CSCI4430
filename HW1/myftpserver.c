@@ -5,6 +5,7 @@ void list_reply(int sd) {
     int payload_len;
     listdir(list_dir);
     payload_len = strlen(list_dir) + 1;
+    printf("payload_len: %d.\n", payload_len);
     send_header(sd, 0xa2, payload_len);
     send_payload(sd, list_dir, payload_len);
 }

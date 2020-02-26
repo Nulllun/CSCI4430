@@ -10,6 +10,7 @@ void list_request() {
     send_header(sd, 0xa1, 0);
     struct message_s *header = recv_header(sd);
     int payload_len = header->length - HEADER_LEN;
+    printf("payload_len: %d.\n", payload_len);
     void *buff = recv_payload(sd, payload_len);
     printf("%s\n", (char *)buff);
     free(header);
