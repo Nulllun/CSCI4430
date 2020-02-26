@@ -38,16 +38,21 @@ void get_request() {
     printf("type: 0x%x\n", header->type);
     printf("length: %u\n", header->length);
     free(header);
-    // start to receive file
-    // FILE *fptr = fopen(filename, "wb");
-    // header = recv_header(sd);
-    // int file_size = header->length - HEADER_LEN;
-    // void *buff = recv_payload(sd, file_size);
-    // fwrite(buff, file_size, 1, fptr);
 
-    // free(header);
-    // free(buff);
-    // fclose(fptr);
+    // start to receive file
+    FILE *fptr = fopen(filename, "wb");
+    header = recv_header(sd);
+    printf("Received Header:\n");
+    printf("protocol: %s", header->protocol);
+    printf("type: 0x%x\n", header->type);
+    printf("length: %u\n", header->length);
+    
+    int file_size = header->length - HEADER_LEN;
+    void *buff = recv_payload(sd, file_size);
+    fwrite(buff, file_size, 1, fptr);
+    free(header);
+    free(buff);
+    fclose(fptr);
 }
 
 void put_request() {

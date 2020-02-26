@@ -18,14 +18,25 @@ void get_reply(int sd, int payload_len) {
     strcat(final_path, filename);
     printf("Filename: %s\n", final_path);
     if (stat(final_path, &st) == 0) {
+        // the file exist
         file_size = st.st_size;
-        printf("File does exist, the size is %d bytes.\n", file_size);
+        send_header(sd, 0xb2, 0);
+        send_header(sd, 0xff, file_size);
+
+        FILE *fptr = fopen(final_path, "rb");
+        void *buff = (void *)malloc(file_size);
+        fread(buff, file_size, 1, fptr);
+        send_payload(sd, buff, file_size);
+
+        free(buff);
+        fclose(fptr);
     }
     else {
-        printf("File does not exist\n");
-        printf("stat error: %s (Errno:%d)\n", strerror(errno), errno);
+        send_header(sd, 0xb3, 0);
+        printf("File error: %s (Errno:%d)\n", strerror(errno), errno);
     }
 
+    free(filename);
 }
 
 void put_reply() {
