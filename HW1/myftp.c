@@ -63,7 +63,7 @@ void listdir(char *file_list){
 }
 
 // send header
-void send_header(int sd, unsigned char type, unsigned int payload_len) {
+void send_header(int sd, unsigned char type, int payload_len) {
     struct message_s *header = (struct message_s *)malloc(sizeof(struct message_s));
     memcpy(header->protocol, "myftp", 5);
     header->type = type;
@@ -100,15 +100,5 @@ void *recv_payload(int sd, int payload_len) {
         fprintf(stderr, "error receiving, exit!\n");
         exit(0);
     }
-    return buff;
-}
-
-void send_file(int sd, void *buff, int file_size) {
-
-}
-
-void *recv_file(int sd, int file_size) {
-    void *buff = (void *)calloc(1, file_size);
-
     return buff;
 }
