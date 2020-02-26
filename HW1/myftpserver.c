@@ -59,17 +59,22 @@ void *pthread_prog(void *sDescriptor) {
     else if(header->type == 0xc1){
     }
 
-
+    pthread_exit(NULL);
 }
 
 int main(int argc, char **argv) {
+    int port = atoi(argv[1]);
     int sd = socket(AF_INET, SOCK_STREAM, 0);
-    int client_sd;
+    long val = 1;
+    if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(long)) == -1) {
+        perror("setsockopt");
+        exit(1);
+    }
     struct sockaddr_in server_addr;
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    server_addr.sin_port = htons(PORT);
+    server_addr.sin_port = htons(port);
     if (bind(sd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         printf("bind error: %s (Errno:%d)\n", strerror(errno), errno);
         exit(0);
@@ -78,18 +83,22 @@ int main(int argc, char **argv) {
         printf("listen error: %s (Errno:%d)\n", strerror(errno), errno);
         exit(0);
     }
-    struct sockaddr_in client_addr;
-    int addr_len = sizeof(client_addr);
-    if ((client_sd = accept(sd, (struct sockaddr *)&client_addr, (socklen_t *)&addr_len)) <0) {
-        printf("accept erro: %s (Errno:%d)\n", strerror(errno), errno);
-        exit(0);
-    } else {
-        printf("receive connection from %s\n", inet_ntoa(client_addr.sin_addr));
+
+    while(1) {
+        int client_sd;
+        struct sockaddr_in client_addr;
+        int addr_len = sizeof(client_addr);
+        if ((client_sd = accept(sd, (struct sockaddr *)&client_addr, (socklen_t *)&addr_len)) <0) {
+            printf("accept erro: %s (Errno:%d)\n", strerror(errno), errno);
+            // exit(0);
+        } else {
+            printf("receive connection from %s\n", inet_ntoa(client_addr.sin_addr));
+        }
+        pthread_t worker;
+        pthread_create(&worker, NULL, pthread_prog, &client_sd);
+        pthread_detach(worker);
     }
-    pthread_t worker;
-    pthread_create(&worker, NULL, pthread_prog, &client_sd);
-    
-    sleep(10);
+
 
     return 0;
 }

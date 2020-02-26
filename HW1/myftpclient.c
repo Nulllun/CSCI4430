@@ -46,7 +46,7 @@ void get_request() {
     printf("protocol: %s", header->protocol);
     printf("type: 0x%x\n", header->type);
     printf("length: %u\n", header->length);
-    
+
     int file_size = header->length - HEADER_LEN;
     void *buff = recv_payload(sd, file_size);
     fwrite(buff, file_size, 1, fptr);
@@ -61,26 +61,27 @@ void put_request() {
 
 int main(int argc, char **argv) {
     // setup connection
+    char *ip_addr = argv[1];
+    int port = atoi(argv[2]);
     sd = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in server_addr;
     pthread_t worker;
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = inet_addr(IPADDR);
-    server_addr.sin_port = htons(PORT);
+    server_addr.sin_addr.s_addr = inet_addr(ip_addr);
+    server_addr.sin_port = htons(port);
     if (connect(sd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0) {
         printf("connection error: %s (Errno:%d)\n", strerror(errno), errno);
         exit(0);
     }
 
     // three mode
-    mode = argv[1];
-    if(argc >= 3) {
-        filename = argv[2];
+    mode = argv[3];
+    if(argc >= 5) {
+        filename = argv[4];
     }
     printf("Mode: %s\n", mode);
     printf("Filename: %s\n", filename);
-
     if(strcmp(mode, "list") == 0){
         list_request();
     }
