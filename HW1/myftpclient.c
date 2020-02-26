@@ -36,7 +36,12 @@ void get_request() {
 
     int file_size = header->length - HEADER_LEN;
     void *buff = recv_payload(sd, file_size);
-    fwrite(buff, file_size, 1, fptr);
+    if(fwrite(buff, file_size, 1, fptr) == 0) {
+        printf("Download fail.\n");
+    }
+    else {
+        printf("Download success.\n");
+    }
     free(header);
     free(buff);
     fclose(fptr);
@@ -67,8 +72,8 @@ int main(int argc, char **argv) {
     if(argc >= 5) {
         filename = argv[4];
     }
-    printf("Mode: %s\n", mode);
-    printf("Filename: %s\n", filename);
+    // printf("Mode: %s\n", mode);
+    // printf("Filename: %s\n", filename);
     if(strcmp(mode, "list") == 0){
         list_request();
     }

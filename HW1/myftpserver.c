@@ -16,7 +16,7 @@ void get_reply(int sd, int payload_len) {
     char final_path[6 + strlen(filename)];
     strcpy(final_path, "data/");
     strcat(final_path, filename);
-    printf("Filename: %s\n", final_path);
+    printf("Request filename: %s\n", filename);
     if (stat(final_path, &st) == 0) {
         // the file exist
         file_size = st.st_size;
@@ -51,12 +51,15 @@ void *pthread_prog(void *sDescriptor) {
     // printf("type: 0x%x\n", header->type);
     // printf("length: %u\n", header->length);
     if(header->type == 0xa1){
+        printf("List request received.\n");
         list_reply(sd);
     }
     else if(header->type == 0xb1){
+        printf("Get request received.\n");
         get_reply(sd, header->length - HEADER_LEN);
     }
     else if(header->type == 0xc1){
+        printf("Put request received.\n");
     }
 
     pthread_exit(NULL);
