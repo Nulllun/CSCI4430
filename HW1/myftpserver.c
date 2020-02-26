@@ -99,6 +99,5 @@ int main(int argc, char **argv) {
         pthread_detach(worker);
     }
 
-
     return 0;
 }
