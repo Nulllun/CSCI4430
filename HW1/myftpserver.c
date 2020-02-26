@@ -3,14 +3,28 @@
 void list_reply(int sd) {
     char list_dir[500];
     int payload_len;
-    struct message_s *header = (struct message_s *)malloc(sizeof(struct message_s));
     listdir(list_dir);
     payload_len = strlen(list_dir) + 1;
     send_header(sd, 0xa2, payload_len);
     send_payload(sd, list_dir, payload_len);
 }
 
-void get_reply() {
+void get_reply(int sd, int payload_len) {
+    int file_size;
+    struct stat st;  
+    char *filename = (char *)recv_payload(sd, payload_len);
+    char final_path[6 + strlen(filename)];
+    strcpy(final_path, "data/");
+    strcat(final_path, filename);
+    printf("Filename: %s\n", final_path);
+    if (stat(final_path, &st) == 0) {
+        file_size = st.st_size;
+        printf("File does exist, the size is %d bytes.\n", file_size);
+    }
+    else {
+        printf("File does not exist\n");
+        printf("stat error: %s (Errno:%d)\n", strerror(errno), errno);
+    }
 
 }
 
@@ -21,6 +35,7 @@ void put_reply() {
 void *pthread_prog(void *sDescriptor) {
     int sd = *(int *)sDescriptor;
     struct message_s *header = recv_header(sd);
+    printf("Received Header:\n");
     printf("protocol: %s", header->protocol);
     printf("type: 0x%x\n", header->type);
     printf("length: %u\n", header->length);
@@ -28,11 +43,12 @@ void *pthread_prog(void *sDescriptor) {
         list_reply(sd);
     }
     else if(header->type == 0xb1){
-        printf("It is a list request\n");
+        get_reply(sd, header->length - HEADER_LEN);
     }
     else if(header->type == 0xc1){
-        printf("It is a list request\n");
     }
+
+
 }
 
 int main(int argc, char **argv) {
@@ -62,6 +78,7 @@ int main(int argc, char **argv) {
     pthread_t worker;
     pthread_create(&worker, NULL, pthread_prog, &client_sd);
     
-    close(sd);
+    sleep(10);
+
     return 0;
 }

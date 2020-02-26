@@ -9,7 +9,11 @@ char *filename;
 void list_request() {
     send_header(sd, 0xa1, 0);
     struct message_s *header = recv_header(sd);
-    int payload_len = header->length - 10;
+    printf("Received Header:\n");
+    printf("protocol: %s", header->protocol);
+    printf("type: 0x%x\n", header->type);
+    printf("length: %u\n", header->length);
+    int payload_len = header->length - HEADER_LEN;
     void *buff = recv_payload(sd, payload_len);
     printf("%s\n", (char *)buff);
     free(header);
@@ -17,7 +21,33 @@ void list_request() {
 }
 
 void get_request() {
-    send_header(sd, 0xb1, 0);
+    send_header(sd, 0xb1, strlen(filename) + 1);
+    send_payload(sd, (void *)filename, strlen(filename) + 1);
+    struct message_s *header = recv_header(sd);
+    unsigned char type = header->type;
+    if(type == 0xb3) {
+        // the file does not exist
+        printf("The requested file does not exist.\n");
+        return;
+    }
+    if(type == 0xb2) {
+        printf("The download process will begin soon.\n");
+    }
+    printf("Received Header:\n");
+    printf("protocol: %s", header->protocol);
+    printf("type: 0x%x\n", header->type);
+    printf("length: %u\n", header->length);
+    free(header);
+    // start to receive file
+    // FILE *fptr = fopen(filename, "wb");
+    // header = recv_header(sd);
+    // int file_size = header->length - HEADER_LEN;
+    // void *buff = recv_payload(sd, file_size);
+    // fwrite(buff, file_size, 1, fptr);
+
+    // free(header);
+    // free(buff);
+    // fclose(fptr);
 }
 
 void put_request() {

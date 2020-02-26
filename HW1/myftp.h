@@ -7,9 +7,11 @@
 #include <string.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <dirent.h>
 
+#define HEADER_LEN 10
 #define PORT 12345
 #define IPADDR "127.0.0.1"
 

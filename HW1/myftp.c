@@ -68,11 +68,7 @@ void send_header(int sd, unsigned char type, unsigned int payload_len) {
     memcpy(header->protocol, "myftp", 5);
     header->type = type;
     header->length = sizeof(*header) + payload_len;
-    printf("protocol: %s", header->protocol);
-    printf("type: 0x%x\n", header->type);
-    printf("length: %u\n", header->length);
-    
-    if (sendn(sd, (void *)header, 10) == 1) {
+    if (sendn(sd, (void *)header, HEADER_LEN) == 1) {
         fprintf(stderr, "send error, exit\n");
         exit(0);
     }
@@ -82,7 +78,7 @@ void send_header(int sd, unsigned char type, unsigned int payload_len) {
 // receive header and return
 struct message_s *recv_header(int sd) {
     struct message_s *header = (struct message_s *)malloc(sizeof(struct message_s));
-    if (recvn(sd, (void *)header, 10) == 1) {
+    if (recvn(sd, (void *)header, HEADER_LEN) == 1) {
         fprintf(stderr, "error receiving, exit!\n");
         exit(0);
     }
@@ -107,10 +103,12 @@ void *recv_payload(int sd, int payload_len) {
     return buff;
 }
 
-void send_file() {
+void send_file(int sd, void *buff, int file_size) {
 
 }
 
-void recv_file() {
+void *recv_file(int sd, int file_size) {
+    void *buff = (void *)calloc(1, file_size);
 
+    return buff;
 }
