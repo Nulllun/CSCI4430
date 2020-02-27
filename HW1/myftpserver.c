@@ -40,8 +40,35 @@ void get_reply(int sd, int payload_len) {
     free(filename);
 }
 
-void put_reply() {
-
+void put_reply(int sd, int payload_len) {
+    printf("In put_reply\n");
+    printf("received filename header\n");
+    printf("receiving filename payload\n");
+    char *filename = (char *)recv_payload(sd, payload_len);
+    printf("received filename payload\n");
+    char final_path[6 + strlen(filename)];
+    strcpy(final_path, "data/");
+    strcat(final_path, filename);
+    printf("The final path is : %s\n", final_path);
+    printf("saying hello to client\n");
+    send_header(sd, 0xc2, 0);
+    printf("said hello to client and receiving header from client\n");
+    struct message_s *header = recv_header(sd);
+    printf("received header from client\n");
+    int file_size = header->length - HEADER_LEN;
+    printf("receiving payload from client\n");
+    void *buff = recv_payload(sd, file_size);
+    printf("received payload from client and start writing file\n");
+    FILE *fptr = fopen(final_path, "wb");
+    if(fwrite(buff, file_size, 1, fptr) == 0) {
+        printf("Download fail.\n");
+    }
+    else {
+        printf("Download success.\n");
+    }
+    free(header);
+    free(buff);
+    fclose(fptr);
 }
 
 void *pthread_prog(void *sDescriptor) {
@@ -61,6 +88,7 @@ void *pthread_prog(void *sDescriptor) {
     }
     else if(header->type == 0xc1){
         printf("Put request received.\n");
+        put_reply(sd, header->length - HEADER_LEN);
     }
 
     pthread_exit(NULL);
