@@ -5,7 +5,6 @@ void list_reply(int sd) {
     int payload_len;
     listdir(list_dir);
     payload_len = strlen(list_dir) + 1;
-    printf("payload_len: %d.\n", payload_len);
     send_header(sd, 0xa2, payload_len);
     send_payload(sd, list_dir, payload_len);
 }
@@ -17,7 +16,7 @@ void get_reply(int sd, int payload_len) {
     char final_path[6 + strlen(filename)];
     strcpy(final_path, "data/");
     strcat(final_path, filename);
-    printf("Request filename: %s\n", filename);
+    printf("Requested filename: %s\n", filename);
     if (stat(final_path, &st) == 0) {
         // the file exist
         file_size = st.st_size;
@@ -34,31 +33,20 @@ void get_reply(int sd, int payload_len) {
     }
     else {
         send_header(sd, 0xb3, 0);
-        printf("File error: %s (Errno:%d)\n", strerror(errno), errno);
     }
 
     free(filename);
 }
 
 void put_reply(int sd, int payload_len) {
-    printf("In put_reply\n");
-    printf("received filename header\n");
-    printf("receiving filename payload\n");
     char *filename = (char *)recv_payload(sd, payload_len);
-    printf("received filename payload\n");
     char final_path[6 + strlen(filename)];
     strcpy(final_path, "data/");
     strcat(final_path, filename);
-    printf("The final path is : %s\n", final_path);
-    printf("saying hello to client\n");
     send_header(sd, 0xc2, 0);
-    printf("said hello to client and receiving header from client\n");
     struct message_s *header = recv_header(sd);
-    printf("received header from client\n");
     int file_size = header->length - HEADER_LEN;
-    printf("receiving payload from client\n");
     void *buff = recv_payload(sd, file_size);
-    printf("received payload from client and start writing file\n");
     FILE *fptr = fopen(final_path, "wb");
     if(fwrite(buff, file_size, 1, fptr) == 0) {
         printf("Download fail.\n");

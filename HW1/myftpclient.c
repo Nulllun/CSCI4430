@@ -10,7 +10,6 @@ void list_request() {
     send_header(sd, 0xa1, 0);
     struct message_s *header = recv_header(sd);
     int payload_len = header->length - HEADER_LEN;
-    printf("payload_len: %d.\n", payload_len);
     void *buff = recv_payload(sd, payload_len);
     printf("%s\n", (char *)buff);
     free(header);
@@ -51,33 +50,27 @@ void get_request() {
 void put_request() {
     int file_size;
     struct stat st;  
-    printf("Put filename: %s\n", filename);
     if (stat(filename, &st) == 0) {
         // the file exist
         file_size = st.st_size;
-        printf("sending filename header\n");
         send_header(sd, 0xc1, strlen(filename) + 1);
-        printf("sending filename payload\n");
         send_payload(sd, (void *)filename, strlen(filename) + 1);
-        printf("receiving header from server\n");
         struct message_s *header = recv_header(sd);
-        printf("received header from server\n");
         unsigned char type = header->type;
-        if(type != 0xc2)
-        printf("sending file size header\n");
         send_header(sd, 0xff, file_size);
-        printf("reading file\n");
         FILE *fptr = fopen(filename, "rb");
         void *buff = (void *)malloc(file_size);
         fread(buff, file_size, 1, fptr);
-        printf("already read file and start sending file data\n");
+        printf("Sending %s to server.\n", filename);
         send_payload(sd, buff, file_size);
-        printf("sent file data\n");
+        printf("Upload success.\n");
+
+        free(header);
         free(buff);
         fclose(fptr);
     }
     else {
-        printf("%s does not exist in local\n", filename);
+        printf("%s does not exist in local.\n", filename);
     }
 
 }
