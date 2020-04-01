@@ -84,6 +84,13 @@ void *pthread_prog(void *sDescriptor) {
 
 int main(int argc, char **argv) {
     int port = atoi(argv[1]);
+    printf("%s\n", argv[1]);
+    FILE *fp;
+    // fp = fopen("/tmp/test.txt", "w+");
+    // fprintf(fp, "This is testing for fprintf...\n");
+    // fputs("This is testing for fputs...\n", fp);
+    // fclose(fp);
+    int config_location = atoi(argv[2]);
     int sd = socket(AF_INET, SOCK_STREAM, 0);
     long val = 1;
     if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(long)) == -1) {
