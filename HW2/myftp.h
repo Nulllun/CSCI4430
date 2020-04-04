@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <dirent.h>
+#include <math.h>
 
 #define HEADER_LEN 10
 #define PORT 12345
