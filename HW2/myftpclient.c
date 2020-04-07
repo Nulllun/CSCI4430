@@ -5,6 +5,52 @@ char *server_ip_addr;
 char *port;
 char *mode;
 char *filename;
+int n;
+int k;
+int block_size;
+char list_of_IP[255][255];
+int list_of_port[255];
+
+void initConfig(char *configFileName)
+{
+    printf("reading %s\n", configFileName);
+    FILE *fp;
+    char buff[255];
+    fp = fopen(configFileName, "r");
+    fgets(buff, 255, (FILE *)fp);
+    n = atoi(buff);
+    fgets(buff, 255, (FILE *)fp);
+    k = atoi(buff);
+    fgets(buff, 255, (FILE *)fp);
+    block_size = atoi(buff);
+
+    char delim[] = ":";
+    //char list_of_IP[255][255];
+    //int list_of_port[255];
+    int count = 0;
+    while (fgets(buff, sizeof(buff), (FILE *)fp) != 0)
+    {
+        char *ptr = strtok(buff, delim);
+        memcpy(list_of_IP[count], ptr, strlen(ptr) + 1);
+        ptr = strtok(NULL, delim);
+        list_of_port[count] = atoi(ptr);
+        count++;
+    }
+    printf("This is the read var:\n");
+    printf("n : %d\n", n);
+    printf("k : %d\n", k);
+    printf("block_size : %d\n", block_size);
+    int print_count = 0;
+    for (print_count = 0; print_count < count; print_count++)
+    {
+        printf("list %d\n", print_count);
+        printf("IP : %s\n", list_of_IP[print_count]);
+        printf("port : %d\n\n", list_of_port[print_count]);
+    }
+    fclose(fp);
+
+    printf("finish reading var\n");
+}
 
 void list_request()
 {
@@ -85,47 +131,11 @@ void put_request()
 
 int main(int argc, char **argv)
 {
+    initConfig(argv[1]);
     // setup connection
+    return 0;
     char *ip_addr = argv[1];  //Adam: these variables ip_addr and port need to connect the variables list_of_IP and list_of_port below
     int port = atoi(argv[2]);
-
-    printf("reading %s\n", argv[1]);
-    FILE *fp;
-    char buff[255];
-    fp = fopen(argv[1], "r");
-    fgets(buff, 255, (FILE *)fp);
-    int n = atoi(buff);
-    fgets(buff, 255, (FILE *)fp);
-    int k = atoi(buff);
-    fgets(buff, 255, (FILE *)fp);
-    int block_size = atoi(buff);
-
-    char delim[] = ":";
-    char list_of_IP[255][255];
-    int list_of_port[255];
-    int count = 0;
-    while (fgets(buff, sizeof(buff), (FILE *)fp) != 0)
-    {
-        char *ptr = strtok(buff, delim);
-        memcpy(list_of_IP[count], ptr, strlen(ptr) + 1);
-        ptr = strtok(NULL, delim);
-        list_of_port[count] = atoi(ptr);
-        count++;
-    }
-    printf("This is the read var:\n");
-    printf("n : %d\n", n);
-    printf("k : %d\n", k);
-    printf("block_size : %d\n", block_size);
-    int print_count = 0;
-    for (print_count = 0; print_count < count; print_count++)
-    {
-        printf("list %d\n", print_count);
-        printf("IP : %s\n", list_of_IP[print_count]);
-        printf("port : %d\n\n", list_of_port[print_count]);
-    }
-    fclose(fp);
-
-    printf("finish reading var\n");
 
     sd = socket(AF_INET, SOCK_STREAM, 0);
     struct sockaddr_in server_addr;
