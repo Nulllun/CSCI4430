@@ -1,58 +1,78 @@
 #include "myftp.c"
 
-int sd;
-char *server_ip_addr;
-char *port;
+int sds[255];
 char *mode;
-char *filename;
+char *FILENAME;
+int SERVER_COUNT;
+int AVAIL_SERVER_COUNT;
 int n;
 int k;
-int block_size;
-char list_of_IP[255][255];
-int list_of_port[255];
+int BLOCK_SIZE;
+char LIST_OF_IP[255][255];
+int LIST_OF_PORT[255];
 
-void initConfig(char *configFileName)
+void initConfig(char *config_file_name)
 {
-    printf("reading %s\n", configFileName);
+    printf("reading %s\n", config_file_name);
     FILE *fp;
     char buff[255];
-    fp = fopen(configFileName, "r");
+    fp = fopen(config_file_name, "r");
     fgets(buff, 255, (FILE *)fp);
     n = atoi(buff);
     fgets(buff, 255, (FILE *)fp);
     k = atoi(buff);
     fgets(buff, 255, (FILE *)fp);
-    block_size = atoi(buff);
+    BLOCK_SIZE = atoi(buff);
 
     char delim[] = ":";
-    //char list_of_IP[255][255];
-    //int list_of_port[255];
-    int count = 0;
+    //char LIST_OF_IP[255][255];
+    //int LIST_OF_PORT[255];
+    SERVER_COUNT = 0;
     while (fgets(buff, sizeof(buff), (FILE *)fp) != 0)
     {
         char *ptr = strtok(buff, delim);
-        memcpy(list_of_IP[count], ptr, strlen(ptr) + 1);
+        memcpy(LIST_OF_IP[SERVER_COUNT], ptr, strlen(ptr) + 1);
         ptr = strtok(NULL, delim);
-        list_of_port[count] = atoi(ptr);
-        count++;
+        LIST_OF_PORT[SERVER_COUNT] = atoi(ptr);
+        SERVER_COUNT++;
     }
     printf("This is the read var:\n");
     printf("n : %d\n", n);
     printf("k : %d\n", k);
-    printf("block_size : %d\n", block_size);
-    int print_count = 0;
-    for (print_count = 0; print_count < count; print_count++)
+    printf("block_size : %d\n", BLOCK_SIZE);
+    for (int i = 0; i < SERVER_COUNT; i++)
     {
-        printf("list %d\n", print_count);
-        printf("IP : %s\n", list_of_IP[print_count]);
-        printf("port : %d\n\n", list_of_port[print_count]);
+        printf("list %d\n", i);
+        printf("IP : %s\n", LIST_OF_IP[i]);
+        printf("port : %d\n\n", LIST_OF_PORT[i]);
     }
     fclose(fp);
 
     printf("finish reading var\n");
 }
 
-void list_request()
+void initSd()
+{
+    AVAIL_SERVER_COUNT = 0;
+    for(int i = 0; i < SERVER_COUNT ; i++){
+        int sd = socket(AF_INET, SOCK_STREAM, 0);
+        struct sockaddr_in server_addr;
+        memset(&server_addr, 0, sizeof(server_addr));
+        server_addr.sin_family = AF_INET;
+        server_addr.sin_addr.s_addr = inet_addr(LIST_OF_IP[i]);
+        server_addr.sin_port = htons(LIST_OF_PORT[i]);
+        if (connect(sd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0){
+            printf("connection error to %s:%d : %s (Errno:%d)\n", LIST_OF_IP[i], LIST_OF_PORT[i], strerror(errno), errno);            
+        }else{
+            printf("Connected to %s:%d\n", LIST_OF_IP[i], LIST_OF_PORT[i]);
+            sds[AVAIL_SERVER_COUNT] = sd;
+            AVAIL_SERVER_COUNT = AVAIL_SERVER_COUNT + 1;
+        }
+    }
+    printf("Available server count: %d\n", AVAIL_SERVER_COUNT);
+}
+
+void list_request(int sd)
 {
     send_header(sd, 0xa1, 0);
     struct message_s *header = recv_header(sd);
@@ -63,10 +83,10 @@ void list_request()
     free(buff);
 }
 
-void get_request()
+void get_request(int sd)
 {
-    send_header(sd, 0xb1, strlen(filename) + 1);
-    send_payload(sd, (void *)filename, strlen(filename) + 1);
+    send_header(sd, 0xb1, strlen(FILENAME) + 1);
+    send_payload(sd, (void *)FILENAME, strlen(FILENAME) + 1);
     struct message_s *header = recv_header(sd);
     unsigned char type = header->type;
     if (type == 0xb3)
@@ -81,7 +101,7 @@ void get_request()
     }
 
     // start to receive file
-    FILE *fptr = fopen(filename, "wb");
+    FILE *fptr = fopen(FILENAME, "wb");
     header = recv_header(sd);
 
     int file_size = header->length - HEADER_LEN;
@@ -99,23 +119,23 @@ void get_request()
     fclose(fptr);
 }
 
-void put_request()
+void put_request(int sd)
 {
     int file_size;
     struct stat st;
-    if (stat(filename, &st) == 0)
+    if (stat(FILENAME, &st) == 0)
     {
         // the file exist
         file_size = st.st_size;
-        send_header(sd, 0xc1, strlen(filename) + 1);
-        send_payload(sd, (void *)filename, strlen(filename) + 1);
+        send_header(sd, 0xc1, strlen(FILENAME) + 1);
+        send_payload(sd, (void *)FILENAME, strlen(FILENAME) + 1);
         struct message_s *header = recv_header(sd);
         unsigned char type = header->type;
         send_header(sd, 0xff, file_size);
-        FILE *fptr = fopen(filename, "rb");
+        FILE *fptr = fopen(FILENAME, "rb");
         void *buff = (void *)malloc(file_size);
         fread(buff, file_size, 1, fptr);
-        printf("Sending %s to server.\n", filename);
+        printf("Sending %s to server.\n", FILENAME);
         send_payload(sd, buff, file_size);
         printf("Upload success.\n");
 
@@ -125,52 +145,44 @@ void put_request()
     }
     else
     {
-        printf("%s does not exist in local.\n", filename);
+        printf("%s does not exist in local.\n", FILENAME);
     }
 }
 
 int main(int argc, char **argv)
 {
     initConfig(argv[1]);
-    // setup connection
-    return 0;
-    char *ip_addr = argv[1];  //Adam: these variables ip_addr and port need to connect the variables list_of_IP and list_of_port below
-    int port = atoi(argv[2]);
 
-    sd = socket(AF_INET, SOCK_STREAM, 0);
-    struct sockaddr_in server_addr;
-    pthread_t worker;
-    memset(&server_addr, 0, sizeof(server_addr));
-    server_addr.sin_family = AF_INET;
-    server_addr.sin_addr.s_addr = inet_addr(ip_addr);
-    server_addr.sin_port = htons(port);
-    if (connect(sd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
-    {
-        printf("connection error: %s (Errno:%d)\n", strerror(errno), errno);
-        exit(0);
-    }
+    initSd();
 
     // three mode
     mode = argv[3];
     if (argc >= 5)
     {
-        filename = argv[4];
+        FILENAME = argv[4];
     }
-    // printf("Mode: %s\n", mode);
-    // printf("Filename: %s\n", filename);
+
     if (strcmp(mode, "list") == 0)
     {
-        list_request();
+        if(AVAIL_SERVER_COUNT < 1){
+            printf("No server is available. LIST command failed. Exit program now.\n");
+        }
+        list_request(1);
     }
     else if (strcmp(mode, "put") == 0)
     {
-        put_request();
+        if(AVAIL_SERVER_COUNT != n){
+            printf("Not all servers are available. PUT command failed. Exit program now.\n");
+        }
+        put_request(1);
     }
     else if (strcmp(mode, "get") == 0)
     {
-        get_request();
+        if(AVAIL_SERVER_COUNT < k){
+            printf("Not enough number of servers available (k). GET command failed. Exit program now.\n");
+        }
+        get_request(1);
     }
 
-    close(sd);
     return 0;
 }

@@ -95,29 +95,29 @@ void *pthread_prog(void *sDescriptor)
 
 int main(int argc, char **argv)
 {
-    printf("reading %s\n", argv[1]);
-    FILE *fp;
-    char buff[255];
-    fp = fopen(argv[1], "r");
-    fgets(buff, 255, (FILE *)fp);
-    int n = atoi(buff);
-    fgets(buff, 255, (FILE *)fp);
-    int k = atoi(buff);
-    fgets(buff, 255, (FILE *)fp);
-    int the_ID = atoi(buff);
-    fgets(buff, 255, (FILE *)fp);
-    int block_size = atoi(buff);
-    fgets(buff, 255, (FILE *)fp);
-    int port = atoi(buff);
-    printf("This is the read var:\n");
-    printf("n : %d\n", n);
-    printf("k : %d\n", k);
-    printf("the_ID : %d\n", the_ID);
-    printf("block_size : %d\n", block_size);
-    printf("port : %d\n", port);
-    fclose(fp);
-    printf("finish reading var\n");
-    int config_location = atoi(argv[2]);
+    // printf("reading %s\n", argv[1]);
+    // FILE *fp;
+    // char buff[255];
+    // fp = fopen(argv[1], "r");
+    // fgets(buff, 255, (FILE *)fp);
+    // int n = atoi(buff);
+    // fgets(buff, 255, (FILE *)fp);
+    // int k = atoi(buff);
+    // fgets(buff, 255, (FILE *)fp);
+    // int the_ID = atoi(buff);
+    // fgets(buff, 255, (FILE *)fp);
+    // int block_size = atoi(buff);
+    // fgets(buff, 255, (FILE *)fp);
+    // int port = atoi(buff);
+    // printf("This is the read var:\n");
+    // printf("n : %d\n", n);
+    // printf("k : %d\n", k);
+    // printf("the_ID : %d\n", the_ID);
+    // printf("block_size : %d\n", block_size);
+    // printf("port : %d\n", port);
+    // fclose(fp);
+    // printf("finish reading var\n");
+    int port = atoi(argv[1]);
     int sd = socket(AF_INET, SOCK_STREAM, 0);
     long val = 1;
     if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(long)) == -1)
@@ -140,7 +140,7 @@ int main(int argc, char **argv)
         printf("listen error: %s (Errno:%d)\n", strerror(errno), errno);
         exit(0);
     }
-
+    printf("Listen on %u:%d\n",server_addr.sin_addr.s_addr, port);
     while (1)
     {
         int client_sd;
