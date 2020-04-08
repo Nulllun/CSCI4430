@@ -1,5 +1,5 @@
 CC = gcc
-LIB = -lpthread -lisal
+LIB = -lpthread
 
 all: 
 	$(CC) -o myftpserver myftpserver.c $(LIB) 

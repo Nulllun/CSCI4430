@@ -47,15 +47,17 @@ void listdir(char *file_list){
     DIR *dir;
     struct dirent *entry;
     int i = 0;
-    if ((dir = opendir("data")) == NULL){
+    if ((dir = opendir("data/metadata/")) == NULL){
         perror("opendir() error");
     }
     else {
         while ((entry = readdir(dir)) != NULL) {
-            memcpy(file_list + i, entry->d_name, strlen(entry->d_name));
-            i = i + strlen(entry->d_name);
-            memcpy(file_list + i, "\n", 1);
-            i = i + 1;
+            if(strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0){
+                memcpy(file_list + i, entry->d_name, strlen(entry->d_name));
+                i = i + strlen(entry->d_name);
+                memcpy(file_list + i, "\n", 1);
+                i = i + 1;
+            }
         }
         memcpy(file_list + i - 1, "\0", 1);
         closedir(dir);
