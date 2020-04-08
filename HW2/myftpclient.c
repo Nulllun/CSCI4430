@@ -1,6 +1,7 @@
 #include "myftp.c"
 
 int sds[255];
+int max_sd = 0;
 char *mode;
 char *FILENAME;
 int SERVER_COUNT;
@@ -10,6 +11,13 @@ int k;
 int BLOCK_SIZE;
 char LIST_OF_IP[255][255];
 int LIST_OF_PORT[255];
+
+void reset_all_sd(fd_set *fds){
+    FD_ZERO(fds);
+    for(int i = 0; i < AVAIL_SERVER_COUNT ; i++){
+        FD_SET(sds[i], fds);
+    }
+}
 
 void init_config(char *config_file_name)
 {
@@ -66,21 +74,35 @@ void init_sd()
         }else{
             printf("Connected to %s:%d\n", LIST_OF_IP[i], LIST_OF_PORT[i]);
             sds[AVAIL_SERVER_COUNT] = sd;
+            max_sd = sd > max_sd ? sd : max_sd;
             AVAIL_SERVER_COUNT = AVAIL_SERVER_COUNT + 1;
         }
     }
     printf("Available server count: %d\n", AVAIL_SERVER_COUNT);
 }
 
-void list_request(int sd)
+void list_request()
 {
-    send_header(sd, 0xa1, 0);
-    struct message_s *header = recv_header(sd);
-    int payload_len = header->length - HEADER_LEN;
-    void *buff = recv_payload(sd, payload_len);
-    printf("%s\n", (char *)buff);
-    free(header);
-    free(buff);
+    fd_set fds;
+    while(1){
+        reset_all_sd(&fds);
+        if(select(max_sd, NULL, &fds, NULL, NULL) > 0){
+            break;
+        }
+    }
+
+    for(int i = 0; i < AVAIL_SERVER_COUNT ; i++){
+        if(FD_ISSET(sds[i], &fds)){
+            send_header(sds[i], 0xa1, 0);
+            struct message_s *header = recv_header(sds[i]);
+            int payload_len = header->length - HEADER_LEN;
+            void *buff = recv_payload(sds[i], payload_len);
+            printf("%s\n", (char *)buff);
+            free(header);
+            free(buff);
+            break;
+        }
+    }
 }
 
 void get_request(int sd)
@@ -123,32 +145,56 @@ void put_request(int sd)
 {
     int file_size;
     struct stat st;
+    int check[AVAIL_SERVER_COUNT];
+    for(int i = 0; i < AVAIL_SERVER_COUNT ; i++){
+        check[i] = 0;
+    }
     if (stat(FILENAME, &st) == 0)
     {
         // the file exist
         file_size = st.st_size;
-
-        // tell server filename
-        send_header(sd, 0xc1, strlen(FILENAME) + 1);
-        send_payload(sd, (void *)FILENAME, strlen(FILENAME) + 1);
-        struct message_s *header = recv_header(sd);
-        unsigned char type = header->type;
-
-        // tell server file size
-        send_header(sd, 0xff, file_size);
-
+        fd_set fds;
         // read file to void buffer
         FILE *fptr = fopen(FILENAME, "rb");
         void *buff = (void *)malloc(file_size);
         fread(buff, file_size, 1, fptr);
+        while(1){
+            reset_all_sd(&fds);
+            int flag = 0;
+            for (int i = 0 ; i < AVAIL_SERVER_COUNT ; i++){
+                if(check[i] == 1){
+                    FD_CLR(sds[i], &fds);
+                    flag = flag + 1;
+                }
+            }
+            if(flag == AVAIL_SERVER_COUNT){
+                return;
+            }
+            if(select(max_sd+1, NULL, &fds, NULL, NULL) > 0){
+                for(int i = 0; i < AVAIL_SERVER_COUNT ; i++){
+                    if(FD_ISSET(sds[i], &fds)){
 
-        printf("Sending %s to server.\n", FILENAME);
+                        // tell server filename
+                        send_header(sds[i], 0xc1, strlen(FILENAME) + 1);
+                        send_payload(sds[i], (void *)FILENAME, strlen(FILENAME) + 1);
+                        struct message_s *header = recv_header(sds[i]);
 
-        // send the file to server
-        send_payload(sd, buff, file_size);
-        printf("Upload success.\n");
+                        // tell server file size
+                        send_header(sds[i], 0xff, file_size);
 
-        free(header);
+                        printf("Sending %s to server.\n", FILENAME);
+
+                        // send the file to server
+                        send_payload(sds[i], buff, file_size);
+                        printf("Upload success.(%d)\n", sds[i]);
+
+                        free(header);
+                        
+                        check[i] = 1;
+                    }
+                }       
+            }
+        }
         free(buff);
         fclose(fptr);
     }
@@ -175,13 +221,15 @@ int main(int argc, char **argv)
     {
         if(AVAIL_SERVER_COUNT < 1){
             printf("No server is available. LIST command failed. Exit program now.\n");
+            exit(0);
         }
-        list_request(sds[0]);
+        list_request();
     }
     else if (strcmp(mode, "put") == 0)
     {
         if(AVAIL_SERVER_COUNT != n){
             printf("Not all servers are available. PUT command failed. Exit program now.\n");
+            exit(0);
         }
         put_request(sds[0]);
     }
@@ -189,6 +237,7 @@ int main(int argc, char **argv)
     {
         if(AVAIL_SERVER_COUNT < k){
             printf("Not enough number of servers available (k). GET command failed. Exit program now.\n");
+            exit(0);
         }
         get_request(sds[0]);
     }

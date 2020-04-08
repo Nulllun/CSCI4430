@@ -52,12 +52,10 @@ void listdir(char *file_list){
     }
     else {
         while ((entry = readdir(dir)) != NULL) {
-            if(strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0){
-                memcpy(file_list + i, entry->d_name, strlen(entry->d_name));
-                i = i + strlen(entry->d_name);
-                memcpy(file_list + i, "\n", 1);
-                i = i + 1;
-            }
+            memcpy(file_list + i, entry->d_name, strlen(entry->d_name));
+            i = i + strlen(entry->d_name);
+            memcpy(file_list + i, "\n", 1);
+            i = i + 1;
         }
         memcpy(file_list + i - 1, "\0", 1);
         closedir(dir);

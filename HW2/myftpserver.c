@@ -89,6 +89,8 @@ void put_reply(int sd, int payload_len)
 
     //get payload and write it to file system
     void *buff = recv_payload(sd, file_size);
+    printf("%s\n",(char *)buff);
+    printf("%s\n",final_path);
     FILE *fptr = fopen(final_path, "wb");
     if (fwrite(buff, file_size, 1, fptr) == 0)
     {
@@ -98,7 +100,7 @@ void put_reply(int sd, int payload_len)
     {
         printf("Download success.\n");
     }
-
+    fclose(fptr);
     // write metadata file
     fptr = fopen(meta_path, "wb");
     printf("%s\n", meta_path);
@@ -137,7 +139,7 @@ void *pthread_prog(void *sDescriptor)
         printf("Put request received.\n");
         put_reply(sd, header->length - HEADER_LEN);
     }
-
+    close(sd);
     pthread_exit(NULL);
 }
 
@@ -145,6 +147,9 @@ int main(int argc, char **argv)
 {
     // create a metadata directory
     struct stat st;
+    if (stat("data/", &st) == -1) {
+        mkdir("data/", 0777);
+    }
     if (stat("data/metadata/", &st) == -1) {
         mkdir("data/metadata/", 0777);
     }
