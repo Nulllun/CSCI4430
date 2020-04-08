@@ -182,7 +182,7 @@ void put_request(int sd)
                         // tell server file size
                         send_header(sds[i], 0xff, file_size);
 
-                        printf("Sending %s to server.\n", FILENAME);
+                        printf("Sending %s to server.(%d)\n", FILENAME, sds[i]);
 
                         // send the file to server
                         send_payload(sds[i], buff, file_size);

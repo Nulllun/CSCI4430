@@ -12,6 +12,7 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <math.h>
+#include <isa-l.h>
 
 int calculate_num_of_stripe(int file_size, int k, int block_size)
 {

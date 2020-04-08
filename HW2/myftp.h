@@ -11,10 +11,10 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <math.h>
+//#include <isa-l.h>
+
 
 #define HEADER_LEN 10
-#define PORT 12345
-#define IPADDR "127.0.0.1"
 
 struct message_s {
     unsigned char protocol[5];
