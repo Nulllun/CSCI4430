@@ -11,7 +11,7 @@ int BLOCK_SIZE;
 char LIST_OF_IP[255][255];
 int LIST_OF_PORT[255];
 
-void initConfig(char *config_file_name)
+void init_config(char *config_file_name)
 {
     printf("reading %s\n", config_file_name);
     FILE *fp;
@@ -51,7 +51,7 @@ void initConfig(char *config_file_name)
     printf("finish reading var\n");
 }
 
-void initSd()
+void init_sd()
 {
     AVAIL_SERVER_COUNT = 0;
     for(int i = 0; i < SERVER_COUNT ; i++){
@@ -103,8 +103,8 @@ void get_request(int sd)
     // start to receive file
     FILE *fptr = fopen(FILENAME, "wb");
     header = recv_header(sd);
-
     int file_size = header->length - HEADER_LEN;
+    printf("File size: %d\n", file_size);
     void *buff = recv_payload(sd, file_size);
     if (fwrite(buff, file_size, 1, fptr) == 0)
     {
@@ -127,15 +127,24 @@ void put_request(int sd)
     {
         // the file exist
         file_size = st.st_size;
+
+        // tell server filename
         send_header(sd, 0xc1, strlen(FILENAME) + 1);
         send_payload(sd, (void *)FILENAME, strlen(FILENAME) + 1);
         struct message_s *header = recv_header(sd);
         unsigned char type = header->type;
+
+        // tell server file size
         send_header(sd, 0xff, file_size);
+
+        // read file to void buffer
         FILE *fptr = fopen(FILENAME, "rb");
         void *buff = (void *)malloc(file_size);
         fread(buff, file_size, 1, fptr);
+
         printf("Sending %s to server.\n", FILENAME);
+
+        // send the file to server
         send_payload(sd, buff, file_size);
         printf("Upload success.\n");
 
@@ -151,15 +160,15 @@ void put_request(int sd)
 
 int main(int argc, char **argv)
 {
-    initConfig(argv[1]);
+    init_config(argv[1]);
 
-    initSd();
+    init_sd();
 
     // three mode
-    mode = argv[3];
-    if (argc >= 5)
+    mode = argv[2];
+    if (argc >= 4)
     {
-        FILENAME = argv[4];
+        FILENAME = argv[3];
     }
 
     if (strcmp(mode, "list") == 0)
@@ -167,21 +176,21 @@ int main(int argc, char **argv)
         if(AVAIL_SERVER_COUNT < 1){
             printf("No server is available. LIST command failed. Exit program now.\n");
         }
-        list_request(1);
+        list_request(sds[0]);
     }
     else if (strcmp(mode, "put") == 0)
     {
         if(AVAIL_SERVER_COUNT != n){
             printf("Not all servers are available. PUT command failed. Exit program now.\n");
         }
-        put_request(1);
+        put_request(sds[0]);
     }
     else if (strcmp(mode, "get") == 0)
     {
         if(AVAIL_SERVER_COUNT < k){
             printf("Not enough number of servers available (k). GET command failed. Exit program now.\n");
         }
-        get_request(1);
+        get_request(sds[0]);
     }
 
     return 0;

@@ -1,5 +1,31 @@
 #include "myftp.c"
 
+void init_config(char *config_file_name)
+{
+    printf("reading %s\n", config_file_name);
+    FILE *fp;
+    char buff[255];
+    fp = fopen(config_file_name, "r");
+    fgets(buff, 255, (FILE *)fp);
+    int n = atoi(buff);
+    fgets(buff, 255, (FILE *)fp);
+    int k = atoi(buff);
+    fgets(buff, 255, (FILE *)fp);
+    int the_ID = atoi(buff);
+    fgets(buff, 255, (FILE *)fp);
+    int block_size = atoi(buff);
+    fgets(buff, 255, (FILE *)fp);
+    int port = atoi(buff);
+    printf("This is the read var:\n");
+    printf("n : %d\n", n);
+    printf("k : %d\n", k);
+    printf("the_ID : %d\n", the_ID);
+    printf("block_size : %d\n", block_size);
+    printf("port : %d\n", port);
+    fclose(fp);
+    printf("finish reading var\n");
+}
+
 void list_reply(int sd)
 {
     char list_dir[500];
@@ -46,11 +72,22 @@ void put_reply(int sd, int payload_len)
 {
     char *filename = (char *)recv_payload(sd, payload_len);
     char final_path[6 + strlen(filename)];
+    char meta_path[15 + strlen(filename)];
     strcpy(final_path, "data/");
     strcat(final_path, filename);
+    strcpy(meta_path, "data/metadata/");
+    strcat(meta_path, filename);
+
+    // send put reply header
     send_header(sd, 0xc2, 0);
+
+    // receive file transfer header
     struct message_s *header = recv_header(sd);
+
+    //get file size
     int file_size = header->length - HEADER_LEN;
+
+    //get payload and write it to file system
     void *buff = recv_payload(sd, file_size);
     FILE *fptr = fopen(final_path, "wb");
     if (fwrite(buff, file_size, 1, fptr) == 0)
@@ -61,6 +98,17 @@ void put_reply(int sd, int payload_len)
     {
         printf("Download success.\n");
     }
+
+    // write metadata file
+    fptr = fopen(meta_path, "wb");
+    printf("%s\n", meta_path);
+    if (fprintf(fptr, "%d", file_size) == 0)
+    {
+        printf("Fail to write metadata file.\n");
+    }else {
+        printf("Successfully write metadata file.\n");
+    }
+    
     free(header);
     free(buff);
     fclose(fptr);
@@ -95,28 +143,11 @@ void *pthread_prog(void *sDescriptor)
 
 int main(int argc, char **argv)
 {
-    // printf("reading %s\n", argv[1]);
-    // FILE *fp;
-    // char buff[255];
-    // fp = fopen(argv[1], "r");
-    // fgets(buff, 255, (FILE *)fp);
-    // int n = atoi(buff);
-    // fgets(buff, 255, (FILE *)fp);
-    // int k = atoi(buff);
-    // fgets(buff, 255, (FILE *)fp);
-    // int the_ID = atoi(buff);
-    // fgets(buff, 255, (FILE *)fp);
-    // int block_size = atoi(buff);
-    // fgets(buff, 255, (FILE *)fp);
-    // int port = atoi(buff);
-    // printf("This is the read var:\n");
-    // printf("n : %d\n", n);
-    // printf("k : %d\n", k);
-    // printf("the_ID : %d\n", the_ID);
-    // printf("block_size : %d\n", block_size);
-    // printf("port : %d\n", port);
-    // fclose(fp);
-    // printf("finish reading var\n");
+    // create a metadata directory
+    struct stat st;
+    if (stat("data/metadata/", &st) == -1) {
+        mkdir("data/metadata/", 0777);
+    }
     int port = atoi(argv[1]);
     int sd = socket(AF_INET, SOCK_STREAM, 0);
     long val = 1;
