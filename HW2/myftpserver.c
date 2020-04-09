@@ -1,5 +1,19 @@
 #include "myftp.c"
 
+int n;
+int k;
+int ID;
+int BLOCK_SIZE;
+int PORT;
+
+void print_global_vars(){
+    printf("n: %d\n", n);
+    printf("k: %d\n", k);
+    printf("ID: %d\n", ID);
+    printf("BLOCK_SIZE: %d\n", BLOCK_SIZE);
+    printf("PORT: %d\n", PORT);
+}
+
 void init_config(char *config_file_name)
 {
     printf("reading %s\n", config_file_name);
@@ -7,21 +21,21 @@ void init_config(char *config_file_name)
     char buff[255];
     fp = fopen(config_file_name, "r");
     fgets(buff, 255, (FILE *)fp);
-    int n = atoi(buff);
+    n = atoi(buff);
     fgets(buff, 255, (FILE *)fp);
-    int k = atoi(buff);
+    k = atoi(buff);
     fgets(buff, 255, (FILE *)fp);
-    int the_ID = atoi(buff);
+    ID = atoi(buff);
     fgets(buff, 255, (FILE *)fp);
-    int block_size = atoi(buff);
+    BLOCK_SIZE = atoi(buff);
     fgets(buff, 255, (FILE *)fp);
-    int port = atoi(buff);
+    PORT = atoi(buff);
     printf("This is the read var:\n");
     printf("n : %d\n", n);
     printf("k : %d\n", k);
-    printf("the_ID : %d\n", the_ID);
-    printf("block_size : %d\n", block_size);
-    printf("port : %d\n", port);
+    printf("ID : %d\n", ID);
+    printf("BLOCK_SIZE : %d\n", BLOCK_SIZE);
+    printf("PORT : %d\n", PORT);
     fclose(fp);
     printf("finish reading var\n");
 }
@@ -39,26 +53,40 @@ void list_reply(int sd)
 void get_reply(int sd, int payload_len)
 {
     int file_size;
+    int fragment_size;
     struct stat st;
     char *filename = (char *)recv_payload(sd, payload_len);
     char final_path[6 + strlen(filename)];
+    char meta_path[15 + strlen(filename)];
     strcpy(final_path, "data/");
     strcat(final_path, filename);
+    strcpy(meta_path, "data/metadata/");
+    strcat(meta_path, filename);
     printf("Requested filename: %s\n", filename);
-    if (stat(final_path, &st) == 0)
-    {
+    if (stat(meta_path, &st) == 0)
+    {   
+        printf("meta path: %s\n", meta_path);
         // the file exist
-        file_size = st.st_size;
-        send_header(sd, 0xb2, 0);
-        send_header(sd, 0xff, file_size);
-
-        FILE *fptr = fopen(final_path, "rb");
-        void *buff = (void *)malloc(file_size);
-        fread(buff, file_size, 1, fptr);
-        send_payload(sd, buff, file_size);
-
-        free(buff);
+        FILE *fptr = fopen(meta_path, "rb");
+        fscanf(fptr, "%d", &file_size);
+        printf("File size: %d\n", file_size);
+        send_header(sd, 0xb2, file_size);
         fclose(fptr);
+
+        fragment_size = ceil((double)file_size / (BLOCK_SIZE * k)) * BLOCK_SIZE;
+        send_header(sd, 0xb2, fragment_size);
+        printf("Fragment size: %d\n", fragment_size);
+        fptr = fopen(final_path, "rb");
+        unsigned char *buff = malloc(fragment_size);
+        
+        fread((void *)buff, fragment_size, 1, fptr);
+        // for(int i = 0; i< 0; i++){
+        //     printf("%d ", *(buff + i));
+        // }
+        // printf("\n");
+        // printf("%s\n",buff);
+        send_payload(sd, (void *)buff, fragment_size);
+        free(buff);
     }
     else
     {
@@ -81,18 +109,21 @@ void put_reply(int sd, int payload_len)
     // send put reply header
     send_header(sd, 0xc2, 0);
 
-    // receive file transfer header
+    // receive file transfer header and get file size
     struct message_s *header = recv_header(sd);
-
-    //get file size
     int file_size = header->length - HEADER_LEN;
+    free(header);
+
+    // get the fragment size
+    header = recv_header(sd);
+    int fragment_size = header->length - HEADER_LEN;
 
     //get payload and write it to file system
-    void *buff = recv_payload(sd, file_size);
+    unsigned char *buff = recv_payload(sd, fragment_size);
     printf("%s\n",(char *)buff);
     printf("%s\n",final_path);
     FILE *fptr = fopen(final_path, "wb");
-    if (fwrite(buff, file_size, 1, fptr) == 0)
+    if (fwrite(buff, fragment_size, 1, fptr) == 0)
     {
         printf("Download fail.\n");
     }
@@ -100,6 +131,12 @@ void put_reply(int sd, int payload_len)
     {
         printf("Download success.\n");
     }
+    printf("block: ");
+        for (int j = 0; j < fragment_size; j++)
+        {
+            printf("%d ", (unsigned char*)buff[j]);
+        }
+        printf("\n");
     fclose(fptr);
     // write metadata file
     fptr = fopen(meta_path, "wb");
@@ -145,6 +182,7 @@ void *pthread_prog(void *sDescriptor)
 
 int main(int argc, char **argv)
 {
+    init_config(argv[1]);
     // create a metadata directory
     struct stat st;
     if (stat("data/", &st) == -1) {
@@ -153,7 +191,6 @@ int main(int argc, char **argv)
     if (stat("data/metadata/", &st) == -1) {
         mkdir("data/metadata/", 0777);
     }
-    int port = atoi(argv[1]);
     int sd = socket(AF_INET, SOCK_STREAM, 0);
     long val = 1;
     if (setsockopt(sd, SOL_SOCKET, SO_REUSEADDR, &val, sizeof(long)) == -1)
@@ -165,7 +202,7 @@ int main(int argc, char **argv)
     memset(&server_addr, 0, sizeof(server_addr));
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = htonl(INADDR_ANY);
-    server_addr.sin_port = htons(port);
+    server_addr.sin_port = htons(PORT);
     if (bind(sd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
     {
         printf("bind error: %s (Errno:%d)\n", strerror(errno), errno);
@@ -176,7 +213,7 @@ int main(int argc, char **argv)
         printf("listen error: %s (Errno:%d)\n", strerror(errno), errno);
         exit(0);
     }
-    printf("Listen on %u:%d\n",server_addr.sin_addr.s_addr, port);
+    printf("Listen on %u:%d\n",server_addr.sin_addr.s_addr, PORT);
     while (1)
     {
         int client_sd;

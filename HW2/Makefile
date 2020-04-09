@@ -1,25 +1,16 @@
 CC = gcc
-LIB = -lpthread
+LIB = -lm -lpthread -lisal
 
 all: 
 	$(CC) -o myftpserver myftpserver.c $(LIB) 
 	$(CC) -o myftpclient myftpclient.c $(LIB)
-	cp myftpserver testSpace/1
-	cp serverconfig.txt testSpace/1
 	
-	cp myftpserver testSpace/2
-	cp serverconfig.txt testSpace/2
-
-	cp myftpserver testSpace/3
-	cp serverconfig.txt testSpace/3
-
-	cp myftpserver testSpace/4
-	cp serverconfig.txt testSpace/4
-
-	cp myftpserver testSpace/5
-	cp serverconfig.txt testSpace/5
-
-
+send:
+	scp myftpserver 10.0.3.2:~/testSpace/0
+	scp myftpserver 10.0.3.2:~/testSpace/1
+	scp myftpserver 10.0.3.2:~/testSpace/2
+	scp myftpserver 10.0.3.2:~/testSpace/3
+	scp myftpserver 10.0.3.2:~/testSpace/4
 
 clean:
 	rm myftpserver myftpclient 
