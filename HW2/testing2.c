@@ -97,6 +97,8 @@ unsigned char **generate_reform_block(unsigned char **blocks_data){
         }
     }
 
+    for(int i = 0; i < k)
+
     if (gf_invert_matrix(errors_matrix, invert_matrix, k)) return -1;
 
     int i,j;
@@ -122,7 +124,7 @@ unsigned char **generate_reform_block(unsigned char **blocks_data){
 			}
 		}
 	}
-
+    
     unsigned char *table_decoding = malloc(sizeof(unsigned char) * (32 * k * (n - k)));
     ec_init_tables(k, n - k, decode_matrix, table_decoding);
 
