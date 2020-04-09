@@ -152,42 +152,54 @@ unsigned char **buffer_to_blocks_data(void *file_buff)
     
     ec_encode_data(BLOCK_SIZE * STRIPE_NUM, k, n - k, table, blocks_data, &blocks_data[k]);
     
-    printf("Encoded block_data: \n");
-    for (count = 0; count < n; count++)
-    {
-        printf("block[%d]: ", count);
-        for (count2 = 0; count2 < STRIPE_NUM * BLOCK_SIZE; count2++)
-        {
-            printf("%d ", blocks_data[count][count2]);
-        }
-        printf("\n");
-    }
-    printf("\n");
+    // printf("Encoded block_data: \n");
+    // for (count = 0; count < n; count++)
+    // {
+    //     printf("block[%d]: ", count);
+    //     for (count2 = 0; count2 < STRIPE_NUM * BLOCK_SIZE; count2++)
+    //     {
+    //         printf("%d ", blocks_data[count][count2]);
+    //     }
+    //     printf("\n");
+    // }
+    // printf("\n");
     
     return blocks_data;
 }
 
 unsigned char **generate_reform_block(unsigned char **blocks_data)
 {
-    printf("Before decode block_data: \n");
-    for (int i = 0; i < AVAIL_SERVER_COUNT; i++)
-    {
-        printf("block[%d]: ", i);
-        for (int j = 0; j < STRIPE_NUM * BLOCK_SIZE; j++)
-        {
-            printf("%d ", blocks_data[i][j]);
-        }
-        printf("\n");
-    }
-    printf("\n");
+    // printf("Before decode block_data: \n");
+    // for (int i = 0; i < AVAIL_SERVER_COUNT; i++)
+    // {
+    //     printf("block[%d]: ", i);
+    //     for (int j = 0; j < STRIPE_NUM * BLOCK_SIZE; j++)
+    //     {
+    //         printf("%d ", blocks_data[i][j]);
+    //     }
+    //     printf("\n");
+    // }
+    // printf("\n");
     int count, count2;
+
     unsigned char *encode_matrix = malloc(sizeof(unsigned char) * (n * k));
     gf_gen_rs_matrix(encode_matrix, n, k);
 
     unsigned char *errors_matrix = malloc(sizeof(unsigned char) * (k * k));
     unsigned char *invert_matrix = malloc(sizeof(unsigned char) * (k * k));
     
-    for (count = 0; count < AVAIL_SERVER_COUNT; count++)
+    // printf("Encode matrix: \n");
+    // for (int i = 0; i < n; i++)
+    // {
+    //     for (int j = 0; j < k; j++)
+    //     {
+    //         printf("%d ", encode_matrix[i * k + j]);
+    //     }
+    //     printf("\n");
+    // }
+    // printf("\n");
+
+    for (count = 0; count < k; count++)
     {
         int r = WK_SERVER_LIST[count];
         for (count2 = 0; count2 < k; count2++)
@@ -195,13 +207,16 @@ unsigned char **generate_reform_block(unsigned char **blocks_data)
             errors_matrix[k * count + count2] = encode_matrix[k * r + count2];
         }
     }
-    printf("Error matrix: \n");
-    for(int i = 0; i < k ; i++){
-        for(int j = 0; j < k ; j++){
-            printf("%d ", errors_matrix[i * k + j]);
-        }
-        printf("\n");
-    }
+
+    // printf("Error matrix: \n");
+    // for(int i = 0; i < k ; i++){
+    //     for(int j = 0; j < k ; j++){
+    //         printf("%d ", errors_matrix[i * k + j]);
+    //     }
+    //     printf("\n");
+    // }
+    // printf("\n");
+
 
     if (gf_invert_matrix(errors_matrix, invert_matrix, k)) return -1;
 
@@ -238,24 +253,42 @@ unsigned char **generate_reform_block(unsigned char **blocks_data)
         blocks_data_decoding[count] = malloc(STRIPE_NUM * BLOCK_SIZE);
     }
 
-    for (count = 0; count < AVAIL_SERVER_COUNT; count++)
+    // printf("here: \n");
+    // for(count = 0; count < k; count++ ){
+    //     printf("%d ",WK_SERVER_LIST[count]);
+    // }
+    // printf("\n");
+
+    for (count = 0; count < k; count++)
     {
-        memcpy(blocks_data_decoding[count], blocks_data[WK_SERVER_LIST[count]], STRIPE_NUM * BLOCK_SIZE);
+        memcpy(blocks_data_decoding[count], blocks_data[count], STRIPE_NUM * BLOCK_SIZE);
     }
+    
+    // printf("Block data decoding: \n");
+    // for (count = 0; count < k; count++)
+    // {
+    //     printf("block[%d]: ", count);
+    //     for (count2 = 0; count2 < STRIPE_NUM * BLOCK_SIZE; count2++)
+    //     {
+    //         printf("%d ", blocks_data_decoding[count][count2]);
+    //     }
+    //     printf("\n");
+    // }
+    // printf("\n");
 
     ec_encode_data(BLOCK_SIZE * STRIPE_NUM, k, n - k, table_decoding, blocks_data_decoding, &blocks_data_decoding[k]);
     
-    printf("Decoded block_data: \n");
-    for (count = 0; count < n; count++)
-    {
-        printf("block[%d]: ", count);
-        for (count2 = 0; count2 < STRIPE_NUM * BLOCK_SIZE; count2++)
-        {
-            printf("%d ", blocks_data_decoding[count][count2]);
-        }
-        printf("\n");
-    }
-    printf("\n");
+    // printf("Decoded block_data: \n");
+    // for (count = 0; count < n; count++)
+    // {
+    //     printf("block[%d]: ", count);
+    //     for (count2 = 0; count2 < STRIPE_NUM * BLOCK_SIZE; count2++)
+    //     {
+    //         printf("%d ", blocks_data_decoding[count][count2]);
+    //     }
+    //     printf("\n");
+    // }
+    // printf("\n");
 
     
     unsigned char **reformed_blocks = malloc(sizeof(unsigned char **) * k);
@@ -270,17 +303,17 @@ unsigned char **generate_reform_block(unsigned char **blocks_data)
         }
     }
 
-    printf("Reformed block_data: \n");
-    for (count = 0; count < k; count++)
-    {
-        printf("block[%d]: ", count);
-        for (count2 = 0; count2 < STRIPE_NUM * BLOCK_SIZE; count2++)
-        {
-            printf("%d ", reformed_blocks[count][count2]);
-        }
-        printf("\n");
-    }
-    printf("\n");
+    // printf("Reformed block_data: \n");
+    // for (count = 0; count < k; count++)
+    // {
+    //     printf("block[%d]: ", count);
+    //     for (count2 = 0; count2 < STRIPE_NUM * BLOCK_SIZE; count2++)
+    //     {
+    //         printf("%d ", reformed_blocks[count][count2]);
+    //     }
+    //     printf("\n");
+    // }
+    // printf("\n");
 
     return reformed_blocks;
 }
@@ -402,8 +435,8 @@ void put_request()
         unsigned char *buff = malloc(FILE_SIZE);
         fread(buff, FILE_SIZE, 1, fptr);
         printf("File size: %d\n", FILE_SIZE);
-        printf("File buff: %s\n", buff);
-        printf("STRIPE_NUM: %d | BLOCK_SIZE: %d\n", STRIPE_NUM, BLOCK_SIZE);
+        // printf("File buff: %s\n", buff);
+        // printf("STRIPE_NUM: %d | BLOCK_SIZE: %d\n", STRIPE_NUM, BLOCK_SIZE);
         unsigned char **blocks_data = buffer_to_blocks_data(buff);
     
         while(1){
@@ -432,11 +465,11 @@ void put_request()
                         // tell server fragment size
                         send_header(sds[i], 0xff, STRIPE_NUM * BLOCK_SIZE);
 
-                        printf("Sending %s to server.(%d)\n", FILENAME, sds[i]);
+                        // printf("Sending %s to server.(%d)\n", FILENAME, sds[i]);
 
                         // send the file to server
                         send_payload(sds[i], blocks_data[i], STRIPE_NUM * BLOCK_SIZE);
-                        printf("Upload success.(%d)\n", sds[i]);
+                        // printf("Upload success.(%d)\n", sds[i]);
 
                         free(header);
                         

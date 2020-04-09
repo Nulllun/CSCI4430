@@ -16,7 +16,7 @@ void print_global_vars(){
 
 void init_config(char *config_file_name)
 {
-    printf("reading %s\n", config_file_name);
+    // printf("reading %s\n", config_file_name);
     FILE *fp;
     char buff[255];
     fp = fopen(config_file_name, "r");
@@ -30,14 +30,14 @@ void init_config(char *config_file_name)
     BLOCK_SIZE = atoi(buff);
     fgets(buff, 255, (FILE *)fp);
     PORT = atoi(buff);
-    printf("This is the read var:\n");
-    printf("n : %d\n", n);
-    printf("k : %d\n", k);
-    printf("ID : %d\n", ID);
-    printf("BLOCK_SIZE : %d\n", BLOCK_SIZE);
-    printf("PORT : %d\n", PORT);
+    // printf("This is the read var:\n");
+    // printf("n : %d\n", n);
+    // printf("k : %d\n", k);
+    // printf("ID : %d\n", ID);
+    // printf("BLOCK_SIZE : %d\n", BLOCK_SIZE);
+    // printf("PORT : %d\n", PORT);
     fclose(fp);
-    printf("finish reading var\n");
+    // printf("finish reading var\n");
 }
 
 void list_reply(int sd)
@@ -75,7 +75,7 @@ void get_reply(int sd, int payload_len)
 
         fragment_size = ceil((double)file_size / (BLOCK_SIZE * k)) * BLOCK_SIZE;
         send_header(sd, 0xb2, fragment_size);
-        printf("Fragment size: %d\n", fragment_size);
+        // printf("Fragment size: %d\n", fragment_size);
         fptr = fopen(final_path, "rb");
         unsigned char *buff = malloc(fragment_size);
         
@@ -120,8 +120,8 @@ void put_reply(int sd, int payload_len)
 
     //get payload and write it to file system
     unsigned char *buff = recv_payload(sd, fragment_size);
-    printf("%s\n",(char *)buff);
-    printf("%s\n",final_path);
+    // printf("%s\n",(char *)buff);
+    // printf("%s\n",final_path);
     FILE *fptr = fopen(final_path, "wb");
     if (fwrite(buff, fragment_size, 1, fptr) == 0)
     {
@@ -131,16 +131,15 @@ void put_reply(int sd, int payload_len)
     {
         printf("Download success.\n");
     }
-    printf("block: ");
-        for (int j = 0; j < fragment_size; j++)
-        {
-            printf("%d ", (unsigned char*)buff[j]);
-        }
-        printf("\n");
+    // printf("block: ");
+    // for (int j = 0; j < fragment_size; j++){
+    //     printf("%d ", (unsigned char*)buff[j]);
+    // }
+    // printf("\n");
     fclose(fptr);
     // write metadata file
     fptr = fopen(meta_path, "wb");
-    printf("%s\n", meta_path);
+    // printf("%s\n", meta_path);
     if (fprintf(fptr, "%d", file_size) == 0)
     {
         printf("Fail to write metadata file.\n");
