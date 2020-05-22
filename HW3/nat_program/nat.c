@@ -31,15 +31,74 @@ struct nat_entry {
   long timestamp_ms;
   int expiry;
 };
+struct Queue 
+{ 
+	int front, rear, size; 
+	int capacity; 
+	char** array; 
+}; 
 
 u_int32_t IP;
 u_int32_t LAN;
 unsigned int LOCAL_MASK;
 int BUCKET_SIZE;
 int FILL_RATE;
+int TOKENS;
+
+pthread_mutex_t bucket_lock;
+pthread_mutex_t packet_buf_lock;
 
 const int table_size = 2001;
 struct nat_entry nat_table[table_size];
+struct Queue* packet_queue;
+
+struct Queue* createQueue(int capacity) 
+{ 
+	struct Queue* queue = (struct Queue*) malloc(sizeof(struct Queue)); 
+	queue->capacity = capacity; 
+	queue->front = queue->size = 0; 
+	queue->rear = capacity - 1; // This is important, see the enqueue 
+	queue->array = (char**) malloc(sizeof(char*) * queue->capacity);
+  for(int i = 0; i < queue->capacity ; i++){
+    queue->array[i] = (char *) malloc(BUF_SIZE);
+  }
+	return queue; 
+} 
+
+// Queue is full when size becomes equal to the capacity 
+int isFull(struct Queue* queue) 
+{ return (queue->size == queue->capacity); } 
+
+// Queue is empty when size is 0 
+int isEmpty(struct Queue* queue) 
+{ return (queue->size == 0); } 
+
+// Function to add an item to the queue. 
+// It changes rear and size 
+int enqueue(struct Queue* queue, char* item) 
+{ 
+    if(isFull(queue)){
+        return 0;
+    }
+    // item is the address of the pktData in handle
+	queue->rear = (queue->rear + 1)%queue->capacity; 
+	memcpy(queue->array[queue->rear], item, BUF_SIZE); 
+	queue->size = queue->size + 1; 
+    return 1;
+} 
+
+// Function to remove an item from queue. 
+// It changes front and size 
+int dequeue(struct Queue* queue, char* item) 
+{ 
+    if(isEmpty(queue)){
+        return 0;
+    }
+	memcpy(item, queue->array[queue->front], BUF_SIZE); 
+	queue->front = (queue->front + 1)%queue->capacity; 
+	queue->size = queue->size - 1; 
+    return 1;
+} 
 
 long get_timestamp(){
   struct timespec spec;
@@ -48,14 +107,19 @@ long get_timestamp(){
 }
 
 void nat_print_table(){
+  int empty_flag = 1;
   printf("Updated NAT table:\n");
   for(int i = 0 ; i < table_size ; i++){
     struct nat_entry tmp = nat_table[i];
     if(tmp.expiry == 0){
+      empty_flag = 0;
       struct in_addr ip_addr;
       ip_addr.s_addr = tmp.internal_ip;
       printf("%s:%u -> %s:%u\n", inet_ntoa(ip_addr),ntohs(tmp.internal_port), "10.0.3.1",ntohs(tmp.translated_port));
     }
+  }
+  if(empty_flag == 1){
+    printf("<Empty>\n");
   }
 }
 
@@ -68,6 +132,18 @@ void nat_print_table(){
 //   // modify the dest ip and port
 //   return nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);;
 // }
+
+int consume_token(){
+  int result = 0;
+  pthread_mutex_lock(&bucket_lock);
+  if(TOKENS > 0){
+    // tokens exist
+    result = 1;
+    TOKENS = TOKENS - 1;
+  }
+  pthread_mutex_unlock(&bucket_lock);
+  return result;
+}
 
 int nat_create_entry(u_int32_t ip, u_int16_t port, struct nat_entry* entry_ptr){
   for(int i = 0 ; i < table_size ; i++){
@@ -97,6 +173,19 @@ int nat_search_entry(int mode, u_int32_t ip, u_int16_t port, struct nat_entry* e
     // it is outbound
     for(int i = 0 ; i < table_size ; i++){
       struct nat_entry tmp = nat_table[i];
+      if(tmp.expiry == 1){
+        continue;
+      }
+      if(tmp.expiry == 0){
+        // only deal with the packet that is not marked expiry
+        long now_ms = get_timestamp();
+        if(now_ms - tmp.timestamp_ms > 10000){
+          // mark the expiry entry
+          print_flag = 1;
+          nat_table[i].expiry = 1;
+          continue;
+        }
+      }
       if((tmp.internal_ip == ip && tmp.internal_port == port) && tmp.expiry == 0){
         // do thing
         result = 1;
@@ -105,39 +194,30 @@ int nat_search_entry(int mode, u_int32_t ip, u_int16_t port, struct nat_entry* e
         // memcpy the entry
         memcpy(entry_ptr, &nat_table[i], sizeof(struct nat_entry));
       }
-      else{
-        if(tmp.expiry == 0){
-          // only deal with the packet that is not marked expiry
-          long now_ms = get_timestamp();
-          if(now_ms - tmp.timestamp_ms > 10000){
-            // mark the expiry entry
-            print_flag = 1;
-            nat_table[i].expiry = 1;
-          }
-        }
-      }
     }
   }
   else{
     // it is inbound
     for(int i = 0 ; i < table_size ; i++){
       struct nat_entry tmp = nat_table[i];
+      if(tmp.expiry == 1){
+        continue;
+      }
+      if(tmp.expiry == 0){
+        // only deal with the packet that is not marked expiry
+        long now_ms = get_timestamp();
+        if(now_ms - tmp.timestamp_ms > 10000){
+          // mark the expiry entry
+          print_flag = 1;
+          nat_table[i].expiry = 1;
+          continue;
+        }
+      }
       if(tmp.translated_port == port && tmp.expiry == 0){
         // do thing
         result = 1;
         nat_table[i].timestamp_ms = get_timestamp();
         memcpy(entry_ptr, &nat_table[i], sizeof(struct nat_entry));
-      }
-      else{
-        if(tmp.expiry == 0){
-          // only deal with the packet that is not marked expiry
-          long now_ms = get_timestamp();
-          if(now_ms - tmp.timestamp_ms > 10000){
-            // mark the expiry entry
-            print_flag = 1;
-            nat_table[i].expiry = 1;
-          }
-        }
       }
     }
   }
@@ -159,6 +239,7 @@ void print_ip(unsigned int ip)
 
 static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
     struct nfq_data *pkt, void *cbData) {
+
   // Get the id in the queue
   unsigned int id = 0;
   struct nfqnl_msg_packet_hdr *header;
@@ -171,19 +252,44 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
   int ip_pkt_len = nfq_get_payload(pkt, &pktData);
   struct iphdr *ipHeader = (struct iphdr *)pktData;
 
-  if (ipHeader->protocol != IPPROTO_UDP) {
+  // put the packet into the queue
+  int drop_flag = 1;
+  pthread_mutex_lock(&packet_buf_lock);
+  if(enqueue(packet_queue, (char *)pkt) == 1){
+    drop_flag = 0;
+  }
+  pthread_mutex_unlock(&packet_buf_lock);
+  if(drop_flag == 1){
     return nfq_set_verdict(myQueue, id, NF_DROP, ip_pkt_len, pktData);
+  }
+  else{
+    return 1;
+  }
+}
+
+void *pthread_prog(void *argv){
+  struct nfq_q_handle *myQueue = (struct nfq_q_handle *) argv;
+  // this thread program is used for process packet in buffer
+  char* pkt = (char*)malloc(BUF_SIZE);
+
+  // Get the id in the queue
+  unsigned int id = 0;
+  struct nfqnl_msg_packet_hdr *header;
+  if (header = nfq_get_msg_packet_hdr((nfq_data *)pkt)){
+    id = ntohl(header->packet_id);
+  } 
+
+  // Access IP Packet
+  unsigned char *pktData;
+  int ip_pkt_len = nfq_get_payload((nfq_data *)pkt, &pktData);
+  struct iphdr *ipHeader = (struct iphdr *)pktData;
+
+  if (ipHeader->protocol != IPPROTO_UDP) {
+    nfq_set_verdict(myQueue, id, NF_DROP, ip_pkt_len, pktData);
   }
 
   // Access UDP Packet
   struct udphdr *udph = (struct udphdr *) (((char*)ipHeader) + ipHeader->ihl*4);;
-
-  // Access App Data
-  unsigned char* appData = pktData + ipHeader->ihl * 4 + 8;
-
-  // ipHeader->ihl is in unit of 4 bytes
-  // prompt: udp_payload_len + udp_header_len + ip_header_len = ip_pkt_len
-  int udp_payload_len = ip_pkt_len - ipHeader->ihl * 4 - 8;
 
   struct nat_entry target;
   if ((ipHeader->saddr & LOCAL_MASK) == LAN) {
@@ -194,7 +300,7 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
       udph->source = target.translated_port;
       udph->check = udp_checksum(pktData);
       ipHeader->check = ip_checksum(pktData);
-      return nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
+      nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
     }
     else if(nat_create_entry(ipHeader->saddr, udph->source, &target) == 1){
       // new entry create success
@@ -202,28 +308,43 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
       udph->source = target.translated_port;
       udph->check = udp_checksum(pktData);
       ipHeader->check = ip_checksum(pktData);
-      return nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
+      nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
     }
     else{
-      return nfq_set_verdict(myQueue, id, NF_DROP, ip_pkt_len, pktData);
+      nfq_set_verdict(myQueue, id, NF_DROP, ip_pkt_len, pktData);
     }
   }
   else{
-    printf("It is inbound\n");
     if(nat_search_entry(0, IP, udph->dest, &target) == 1){
       // record is found
       ipHeader->daddr = target.internal_ip;
       udph->dest = target.internal_port;
       udph->check = udp_checksum(pktData);
       ipHeader->check = ip_checksum(pktData);
-      return nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
+      nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
     }
     else{
-      return nfq_set_verdict(myQueue, id, NF_DROP, ip_pkt_len, pktData);
+      nfq_set_verdict(myQueue, id, NF_DROP, ip_pkt_len, pktData);
     }
   }
+  pthread_exit(NULL);
 }
 
+void *bucket_prog(void* argv){
+  // this thread program is used for bucket counter;
+  TOKENS = BUCKET_SIZE;
+  while (1) {
+    pthread_mutex_lock(&bucket_lock);
+    TOKENS = TOKENS + FILL_RATE;
+    if(TOKENS > BUCKET_SIZE){
+      TOKENS = BUCKET_SIZE;
+    }
+    pthread_mutex_unlock(&bucket_lock);
+    sleep(1);
+  }
+  pthread_mutex_destroy(&bucket_lock);
+  pthread_exit(NULL);
+}
 
 int main(int argc, char** argv) {
 
@@ -280,11 +401,14 @@ int main(int argc, char** argv) {
     nat_table[i].expiry = 1;
   }
 
-  // for(int i = 0 ; i < 10 ; i++){
-  //   struct in_addr ip_addr;
-  //   inet_aton("10.0.3.2", &ip_addr);
-  //   nat_create_entry(ip_addr.s_addr, htons(100+i), &nat_table[i]);
-  // }
+  pthread_t worker, bucket;
+  pthread_mutex_init(&bucket_lock, 0);
+  pthread_create(&bucket, NULL, bucket_prog, NULL);
+  pthread_detach(bucket);
+  packet_queue = createQueue(10);
+  pthread_mutex_init(&packet_buf_lock, 0);
+  pthread_create(&worker, NULL, pthread_prog, (void *)nfQueue);
+  pthread_detach(worker);
 
   printf("Start to handle packets\n");
   while ((res = recv(fd, buf, sizeof(buf), 0)) && res >= 0) {

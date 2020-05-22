@@ -4,7 +4,7 @@ IP="10.3.1.3"
 LAN="10.0.3.0"
 MASK="24"
 BUCKET_SIZE="10"
-FILL_RATE="1"
+FILL_RATE="0"
 
 echo "1" >  /proc/sys/net/ipv4/ip_forward
 
