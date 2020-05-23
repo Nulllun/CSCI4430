@@ -35,7 +35,7 @@ struct Queue
 { 
 	int front, rear, size; 
 	int capacity; 
-	char** array; 
+	unsigned char** array; 
 }; 
 
 u_int32_t IP;
@@ -56,11 +56,12 @@ struct Queue* createQueue(int capacity)
 { 
 	struct Queue* queue = (struct Queue*) malloc(sizeof(struct Queue)); 
 	queue->capacity = capacity; 
-	queue->front = queue->size = 0; 
+  queue->size = 0;
+	queue->front =  0;
 	queue->rear = capacity - 1; // This is important, see the enqueue 
-	queue->array = (char**) malloc(sizeof(char*) * queue->capacity);
+	queue->array = (unsigned char**) malloc(sizeof(unsigned char*) * queue->capacity);
   for(int i = 0; i < queue->capacity ; i++){
-    queue->array[i] = (char *) malloc(BUF_SIZE);
+    queue->array[i] = (unsigned char *) malloc(BUF_SIZE);
   }
 	return queue; 
 } 
@@ -75,30 +76,41 @@ int isEmpty(struct Queue* queue)
 
 // Function to add an item to the queue. 
 // It changes rear and size 
-int enqueue(struct Queue* queue, char* item) 
+int enqueue(struct Queue* queue, unsigned char* item) 
 { 
-    if(isFull(queue)){
-        return 0;
-    }
-    // item is the address of the pktData in handle
+  if(isFull(queue)){
+    return 0;
+  }
+  // item is the address of the pktData in handle
 	queue->rear = (queue->rear + 1)%queue->capacity; 
 	memcpy(queue->array[queue->rear], item, BUF_SIZE); 
 	queue->size = queue->size + 1; 
-    return 1;
+  return 1;
 } 
 
 // Function to remove an item from queue. 
 // It changes front and size 
-int dequeue(struct Queue* queue, char* item) 
+int dequeue(struct Queue* queue, unsigned char* item) 
 { 
-    if(isEmpty(queue)){
-        return 0;
-    }
+  if(isEmpty(queue)){
+    return 0;
+  }
 	memcpy(item, queue->array[queue->front], BUF_SIZE); 
 	queue->front = (queue->front + 1)%queue->capacity; 
 	queue->size = queue->size - 1; 
-    return 1;
+  return 1;
 } 
+
+int my_sleep(long ns){
+  struct timespec tim1, tim2;
+  tim1.tv_sec = 0;
+  tim1.tv_nsec = ns;
+  if(nanosleep(&tim1, &tim2) < 0){
+    printf("nanosleep() failed!\n");
+    return 0;
+  }
+  return 1;
+}
 
 long get_timestamp(){
   struct timespec spec;
@@ -123,26 +135,29 @@ void nat_print_table(){
   }
 }
 
-// int nat_map_outbound(){
-//   // modify the source ip and port 
-//   return nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);;
-// }
-
-// int nat_map_inbound(){
-//   // modify the dest ip and port
-//   return nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);;
-// }
-
 int consume_token(){
   int result = 0;
   pthread_mutex_lock(&bucket_lock);
+  // int tmp1, tmp2;
+  // tmp1 = TOKENS;
   if(TOKENS > 0){
     // tokens exist
     result = 1;
     TOKENS = TOKENS - 1;
   }
+  // tmp2 = TOKENS;
+  // if(tmp1 != 0 || tmp2 != 0){
+  //   printf("Tokens: %d -> %d\n", tmp1, tmp2);
+  // }
   pthread_mutex_unlock(&bucket_lock);
   return result;
+}
+
+void transmit_pkt(struct nfq_q_handle *myQueue, unsigned int id, int ip_pkt_len, unsigned char *pktData){
+  while (consume_token() == 0){
+    my_sleep(500000);
+  }
+  nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
 }
 
 int nat_create_entry(u_int32_t ip, u_int16_t port, struct nat_entry* entry_ptr){
@@ -255,8 +270,13 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
   // put the packet into the queue
   int drop_flag = 1;
   pthread_mutex_lock(&packet_buf_lock);
-  if(enqueue(packet_queue, (char *)pkt) == 1){
+  printf("Packet queue: %d -> ", packet_queue->size);
+  if(enqueue(packet_queue, (unsigned char *)pkt) == 1){
     drop_flag = 0;
+  }
+  printf("%d\n", packet_queue->size);
+  if(drop_flag == 1){
+    printf("packet dropped\n");
   }
   pthread_mutex_unlock(&packet_buf_lock);
   if(drop_flag == 1){
@@ -270,62 +290,75 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
 void *pthread_prog(void *argv){
   struct nfq_q_handle *myQueue = (struct nfq_q_handle *) argv;
   // this thread program is used for process packet in buffer
-  char* pkt = (char*)malloc(BUF_SIZE);
+  while(1){
+    struct nfq_data* pkt = (struct nfq_data*)malloc(BUF_SIZE);
 
-  // Get the id in the queue
-  unsigned int id = 0;
-  struct nfqnl_msg_packet_hdr *header;
-  if (header = nfq_get_msg_packet_hdr((nfq_data *)pkt)){
-    id = ntohl(header->packet_id);
-  } 
+    while(1){
+      // loop until dequeue success
+      int dequeue_result;
+      pthread_mutex_lock(&packet_buf_lock);
+      dequeue_result = dequeue(packet_queue, (unsigned char*)pkt);
+      pthread_mutex_unlock(&packet_buf_lock);
+      if(dequeue_result == 0){
+        my_sleep(100000);
+      }
+      else{
+        printf("dequeue!!!\n");
+        break;
+      }
+    }
 
-  // Access IP Packet
-  unsigned char *pktData;
-  int ip_pkt_len = nfq_get_payload((nfq_data *)pkt, &pktData);
-  struct iphdr *ipHeader = (struct iphdr *)pktData;
+    // Get the id in the queue
+    unsigned int id = 0;
+    struct nfqnl_msg_packet_hdr *header;
+    if (header = nfq_get_msg_packet_hdr((nfq_data *)pkt)){
+      id = ntohl(header->packet_id);
+    } 
 
-  if (ipHeader->protocol != IPPROTO_UDP) {
-    nfq_set_verdict(myQueue, id, NF_DROP, ip_pkt_len, pktData);
-  }
-
-  // Access UDP Packet
-  struct udphdr *udph = (struct udphdr *) (((char*)ipHeader) + ipHeader->ihl*4);;
-
-  struct nat_entry target;
-  if ((ipHeader->saddr & LOCAL_MASK) == LAN) {
-    // printf("It is outbound\n");
-    if(nat_search_entry(1, ipHeader->saddr, udph->source, &target) == 1){
-      // old entry is found
-      ipHeader->saddr = IP;
-      udph->source = target.translated_port;
-      udph->check = udp_checksum(pktData);
-      ipHeader->check = ip_checksum(pktData);
-      nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
+    // Access IP Packet
+    unsigned char *pktData;
+    int ip_pkt_len = nfq_get_payload((nfq_data *)pkt, &pktData);
+    struct iphdr *ipHeader = (struct iphdr *)pktData;
+    
+    struct nat_entry target;
+    if (ipHeader->protocol == IPPROTO_UDP) {
+      // Access UDP Packet
+      struct udphdr *udph = (struct udphdr *) (((char*)ipHeader) + ipHeader->ihl*4);;
+      if((ipHeader->saddr & LOCAL_MASK) == LAN){
+        // outbound traffic
+        int search_flag = 0;
+        int create_flag = 0;
+        search_flag = nat_search_entry(1, ipHeader->saddr, udph->source, &target);
+        if(search_flag == 0){
+          create_flag = nat_create_entry(ipHeader->saddr, udph->source, &target);
+        }
+        if(search_flag == 1 || create_flag == 1){
+          ipHeader->saddr = IP;
+          udph->source = target.translated_port;
+          udph->check = udp_checksum(pktData);
+          ipHeader->check = ip_checksum(pktData);
+          transmit_pkt(myQueue, id, ip_pkt_len, pktData);
+        }
+        else{
+          nfq_set_verdict(myQueue, id, NF_DROP, ip_pkt_len, pktData);
+        }
+      }
+      else{
+        // inbound traffic
+        if(nat_search_entry(0, IP, udph->dest, &target) == 1){
+          // record is found
+          ipHeader->daddr = target.internal_ip;
+          udph->dest = target.internal_port;
+          udph->check = udp_checksum(pktData);
+          ipHeader->check = ip_checksum(pktData);
+          transmit_pkt(myQueue, id, ip_pkt_len, pktData);
+          }
+        else{
+          nfq_set_verdict(myQueue, id, NF_DROP, ip_pkt_len, pktData);
+        }
+      }
     }
-    else if(nat_create_entry(ipHeader->saddr, udph->source, &target) == 1){
-      // new entry create success
-      ipHeader->saddr = IP;
-      udph->source = target.translated_port;
-      udph->check = udp_checksum(pktData);
-      ipHeader->check = ip_checksum(pktData);
-      nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
-    }
-    else{
-      nfq_set_verdict(myQueue, id, NF_DROP, ip_pkt_len, pktData);
-    }
-  }
-  else{
-    if(nat_search_entry(0, IP, udph->dest, &target) == 1){
-      // record is found
-      ipHeader->daddr = target.internal_ip;
-      udph->dest = target.internal_port;
-      udph->check = udp_checksum(pktData);
-      ipHeader->check = ip_checksum(pktData);
-      nfq_set_verdict(myQueue, id, NF_ACCEPT, ip_pkt_len, pktData);
-    }
-    else{
-      nfq_set_verdict(myQueue, id, NF_DROP, ip_pkt_len, pktData);
-    }
+    free(pkt);
   }
   pthread_exit(NULL);
 }
@@ -342,7 +375,6 @@ void *bucket_prog(void* argv){
     pthread_mutex_unlock(&bucket_lock);
     sleep(1);
   }
-  pthread_mutex_destroy(&bucket_lock);
   pthread_exit(NULL);
 }
 

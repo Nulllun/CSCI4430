@@ -1,8 +1,19 @@
-
-
+#include <stdio.h>
 #include <string.h>
+#include <time.h>
 #include <netinet/in.h> // "struct sockaddr_in"
 #include <sys/socket.h>
+
+int my_sleep(long ns){
+  struct timespec tim1, tim2;
+  tim1.tv_sec = 0;
+  tim1.tv_nsec = ns;
+  if(nanosleep(&tim1, &tim2) < 0){
+    printf("nanosleep() failed!\n");
+    return 0;
+  }
+  return 1;
+}
 
 int main(int argc, char *argv[]) {
 
@@ -16,7 +27,7 @@ int main(int argc, char *argv[]) {
   memset(&destination, 0, sizeof(struct sockaddr_in));
   destination.sin_family = AF_INET;
   inet_pton(AF_INET, ip, &(destination.sin_addr));
-  destination.sin_port = htons(12345);
+  destination.sin_port = htons(12000);
 
   int num=0;
   while (1) {
@@ -25,7 +36,7 @@ int main(int argc, char *argv[]) {
     printf("send %d\n", num);
     sendto(fd, (char*)&tmpnum, len, 0, (struct sockaddr *)&destination, sizeof(destination));
     num++;
-    sleep(1);
+    my_sleep(100000);
   }
 
   return 0;
