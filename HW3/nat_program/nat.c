@@ -270,14 +270,14 @@ static int Callback(struct nfq_q_handle *myQueue, struct nfgenmsg *msg,
   // put the packet into the queue
   int drop_flag = 1;
   pthread_mutex_lock(&packet_buf_lock);
-  printf("Packet queue: %d -> ", packet_queue->size);
+  // printf("Packet queue: %d -> ", packet_queue->size);
   if(enqueue(packet_queue, (unsigned char *)pkt) == 1){
     drop_flag = 0;
   }
-  printf("%d\n", packet_queue->size);
-  if(drop_flag == 1){
-    printf("packet dropped\n");
-  }
+  // printf("%d\n", packet_queue->size);
+  // if(drop_flag == 1){
+  //   printf("packet dropped\n");
+  // }
   pthread_mutex_unlock(&packet_buf_lock);
   if(drop_flag == 1){
     return nfq_set_verdict(myQueue, id, NF_DROP, ip_pkt_len, pktData);
@@ -303,7 +303,7 @@ void *pthread_prog(void *argv){
         my_sleep(100000);
       }
       else{
-        printf("dequeue!!!\n");
+        // printf("dequeue!!!\n");
         break;
       }
     }
